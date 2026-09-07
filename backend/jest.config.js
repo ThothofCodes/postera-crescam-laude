@@ -15,5 +15,5 @@ module.exports = {
   // Clear mocks between tests
   clearMocks: true,
   // Setup files
-  setupFilesAfterSetup: [],
+  setupFilesAfterFramework: [],
 };

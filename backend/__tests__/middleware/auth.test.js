@@ -47,6 +47,7 @@ function mockReqRes(overrides = {}) {
       status(code) { this.statusCode = code; return this; },
       json(data) { this.body = data; return this; },
       setHeader() { return this; },
+      clearCookie() { return this; },
     },
     next: jest.fn(),
   };
