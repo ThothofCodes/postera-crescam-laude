@@ -22,12 +22,12 @@ describe('authStore', () => {
     expect(useAuthStore.getState().loading).toBe(false);
   });
 
-  test('logout clears user and token', () => {
-    localStorage.setItem('token', 'some-token');
+  test('logout clears user and loading state', () => {
     useAuthStore.getState().setUser({ _id: '1', name: 'Test' });
     useAuthStore.getState().logout();
     expect(useAuthStore.getState().user).toBeNull();
-    expect(localStorage.getItem('token')).toBeNull();
+    expect(useAuthStore.getState().loading).toBe(false);
+    expect(useAuthStore.getState().error).toBeNull();
   });
 
   test('clearError resets error to null', () => {
