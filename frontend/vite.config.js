@@ -14,6 +14,17 @@ export default defineConfig({
         target: 'http://localhost:5001',
         changeOrigin: true,
         secure: false,
+        cookieDomainRewrite: { '*': '' },
+        configure: (proxy) => {
+          proxy.on('proxyRes', (proxyRes) => {
+            const cookies = proxyRes.headers['set-cookie'];
+            if (cookies) {
+              proxyRes.headers['set-cookie'] = cookies.map(c =>
+                c.replace(/Domain=[^;]+;?/gi, '')
+              );
+            }
+          });
+        },
       },
       '/socket.io': {
         target: 'http://localhost:5001',

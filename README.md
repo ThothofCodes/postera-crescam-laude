@@ -8,201 +8,187 @@
 
 ## Table of Contents
 
-1. [Prerequisites](#1-prerequisites)
-2. [Clone & Install](#2-clone--install)
-3. [Environment Setup](#3-environment-setup)
-4. [Database Setup](#4-database-setup)
-5. [Seed the Database](#5-seed-the-database)
-6. [Boot the Application](#6-boot-the-application)
+1. [Architecture Overview](#1-architecture-overview)
+2. [Prerequisites](#2-prerequisites)
+3. [Quick Start](#3-quick-start)
+4. [Environment Variables](#4-environment-variables)
+5. [API Keys Reference](#5-api-keys-reference)
+6. [Features](#6-features)
 7. [Access the Platform](#7-access-the-platform)
-8. [Department URLs](#8-department-urls)
-9. [Environment Variables Reference](#9-environment-variables-reference)
-10. [Production Build](#10-production-build)
-11. [CI/CD Pipeline](#11-cicd-pipeline)
-12. [Deployment](#12-deployment)
-13. [Troubleshooting](#13-troubleshooting)
+8. [Tech Hub (Astro)](#8-tech-hub-astro)
+9. [API Documentation](#9-api-documentation)
+10. [Security](#10-security)
+11. [Performance](#11-performance)
+12. [Troubleshooting](#12-troubleshooting)
+13. [Project Structure](#13-project-structure)
 
 ---
 
-## 1. Prerequisites
+## 1. Architecture Overview
 
-Ensure the following are installed before proceeding:
+```
+  Browser (port 3000)              Infrastructure
+  ┌──────────────┐         ┌──────────────────────┐
+  │  React SPA   │────────▶│  Express API (:5001)  │
+  │  (Vite dev)  │  proxy  │  Socket.IO · Zod      │
+  └──────────────┘         └────────┬─────────────┘
+                                    │
+                    ┌───────────────┼───────────────┐
+                    │               │               │
+             ┌──────▼─────┐ ┌──────▼─────┐ ┌───────▼─────┐
+             │  MongoDB   │ │   Redis    │ │    MinIO     │
+             │  (:27017)  │ │  (:6379)   │ │ (:9000/9001)│
+             │  Atlas     │ │  Cache     │ │  Object Store│
+             └────────────┘ └────────────┘ └─────────────┘
+                                                    │
+                                          ┌─────────▼─────────┐
+                                          │    LiveKit         │
+                                          │  Video Conf.       │
+                                          │    (:7880)         │
+                                          └───────────────────┘
+```
 
-| Tool | Minimum Version | Check |
-|------|----------------|-------|
-| Node.js | 18.x or higher | `node --version` |
-| npm | 9.x or higher | `npm --version` |
-| MongoDB | Atlas (cloud) **or** local 6.x+ | `mongod --version` |
-| Git | Any recent | `git --version` |
-
-> **Network note:** If you are on a slow connection, use `npm install --prefer-offline` after the first install to avoid re-downloading packages.
+| Technology | Role |
+|------------|------|
+| **MinIO** | S3-compatible object storage (avatars, products, receipts) |
+| **Redis** | API response caching, session storage |
+| **Zod** | Request validation middleware |
+| **LiveKit** | Self-hosted video conferencing |
+| **Astro** | Static tech hub (tips, news, facts, articles) |
+| **CSRF + httpOnly cookies** | XSS/CSRF prevention |
 
 ---
 
-## 2. Clone & Install
+## 2. Prerequisites
+
+| Tool | Version | Check |
+|------|---------|-------|
+| Node.js | 20.x+ | `node --version` |
+| npm | 10.x+ | `npm --version` |
+| MongoDB | 7.x+ | Atlas (cloud) or local `mongod` |
+| Redis | 7.x+ | `redis-cli ping` (optional, falls back gracefully) |
+| MinIO | Latest | `minio server /data` (required for file uploads) |
+| Git | Any | `git --version` |
+
+---
+
+## 3. Quick Start
 
 ```bash
-# Clone the repository
+# Clone and setup
 git clone https://github.com/Thothofcodes/pcl_solutions.git
 cd pcl_solutions
+make setup         # Install deps + generate secrets
 
-# Install root dev tools (concurrently)
-npm install
+# Fill in API keys
+nano backend/.env
 
-# Install backend dependencies
-npm install --prefix backend
+# Start everything
+make dev           # Backend (:5001) + Frontend (:3000)
 
-# Install frontend dependencies
-npm install --prefix frontend
+# Or start individually
+make backend       # Backend only
+make frontend      # Frontend only
 ```
 
-Or using the single convenience command:
+### Makefile Commands
 
 ```bash
-npm run install:all
-```
-
-> **Note:** If you are on a slow connection or want faster subsequent installations, use `npm install --prefer-offline` after the first install to avoid re-downloading packages.
-
-### Resolving Dependency Conflicts
-
-If you encounter dependency conflicts during installation, try these solutions:
-
-```bash
-# Clean install without cache
-npm ci --prefix backend
-npm ci --prefix frontend
-
-# Force reinstall with legacy peer deps (if needed) - this resolves the Babel/ESLint conflicts
-npm install --force --legacy-peer-deps --prefix backend
-npm install --force --legacy-peer-deps --prefix frontend
-
-# Alternative approach for handling the specific Babel/ESLint conflicts:
-cd backend && npm install --legacy-peer-deps
-cd ../frontend && npm install --legacy-peer-deps
-
-# Clear npm cache and reinstall
-npm cache clean --force
-npm install --prefix backend
-npm install --prefix frontend
-
-# For Vercel/production builds specifically encountering Babel conflicts:
-cd frontend
-npm install --save-dev @babel/core@^7.29.7  # Downgrade to compatible version
-npm install --legacy-peer-deps
-```
-
-> **Note:** The project currently has peer dependency conflicts between Babel versions (8.0.1 vs 7.x) and ESLint versions that may cause installation failures. Using `--legacy-peer-deps` flag bypasses these conflicts by ignoring the peerDependency tree and resolving the dependencies like npm v6. This is the recommended approach for CI/CD environments.
-
----
-
-## 3. Environment Setup
-
-### Backend
-
-```bash
-cd backend
-cp .env.example .env
-nano .env        # or use any text editor
-```
-
-Fill in every variable in `.env`. The critical ones to set before first boot:
-
-```env
-# 1 — Your MongoDB connection string
-MONGO_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/pcl
-
-# 2 — A strong random secret (generate with: openssl rand -base64 32)
-JWT_SECRET=<min-32-character-random-string>
-
-# 3 — Must exactly match the Super Admin account email
-SUPER_ADMIN_EMAIL=codeofthoth@outlook.com
-
-# 4 — M-Pesa Daraja credentials (get from developer.safaricom.co.ke)
-MPESA_CONSUMER_KEY=<your_consumer_key>
-MPESA_CONSUMER_SECRET=<your_consumer_secret>
-MPESA_SHORTCODE=<your_shortcode>
-MPESA_PASSKEY=<your_passkey>
-MPESA_CALLBACK_URL=https://<your-domain>/api/payments/mpesa/callback
-
-# 5 — Africa's Talking (get from account.africastalking.com)
-AT_USERNAME=sandbox          # use 'sandbox' for testing
-AT_API_KEY=<your_api_key>
-
-# 6 — Passwords for the seed script (used ONCE, then remove from .env)
-SEED_SUPER_ADMIN_PASSWORD=<strong-unique-password>
-SEED_ADMIN_PASSWORD=<strong-unique-password>
+make setup         # Install dependencies + generate secrets
+make dev           # Start backend + frontend
+make backend       # Start backend only
+make frontend      # Start frontend only
+make stop          # Stop all Node processes
+make status        # Check all services
+make build         # Build frontend for production
+make seed          # Seed database
+make smoke         # Run smoke test
+make clean-logs    # Remove temp log files
+make help          # Show all commands
 ```
 
 ---
 
-## 4. Database Setup
+## 4. Environment Variables
 
-1. **MongoDB Atlas** (recommended for production):
-   - Create a free cluster at [MongoDB Atlas](https://www.mongodb.com/atlas/database)
-   - Navigate to Database Access → Add New Database User
-   - Create a user with `Read and Write to Any Database` privilege
-   - Navigate to Network Access → Add IP Address → Allow Access from Anywhere (0.0.0.0/0)
-   - Copy the connection string and replace `<username>`, `<password>`, and `<cluster>` with your credentials
+Key sections from `backend/.env`:
 
-2. **Local MongoDB** (for development only):
-   - Install MongoDB Community Edition
-   - Start the MongoDB service: `sudo systemctl start mongod`
-   - Verify it's running: `sudo systemctl status mongod`
-
----
-
-## 5. Seed the Database
-
-⚠️ **Important**: Only run the seed script once after the first installation.
-
-```bash
-# From the project root
-npm run seed
-
-# Or from the backend directory
-cd backend && npm run seed
-```
-
-This creates:
-- Super Admin account (email: `codeofthoth@outlook.com`)
-- Admin accounts for each department
-- Sample data for testing
-
-After seeding, **remove** the `SEED_*` variables from your `.env` file.
+| Variable | Description |
+|----------|-------------|
+| `NODE_ENV` | `development` or `production` |
+| `PORT` | Backend port (default: `5001`) |
+| `CLIENT_URL` | Frontend URL for CORS (default: `http://localhost:3000`) |
+| `MONGO_URI` | MongoDB Atlas connection string |
+| `JWT_SECRET` | JWT signing key |
+| `CSRF_SECRET` | CSRF token signing |
+| `REDIS_HOST` / `REDIS_PORT` | Redis connection (optional) |
+| `MINIO_ENDPOINT` / `MINIO_ACCESS_KEY` | MinIO storage |
+| `MPESA_CONSUMER_KEY` / `MPESA_PASSKEY` | M-Pesa payments |
+| `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` | Video conferencing |
+| `EMAIL_HOST` / `EMAIL_USER` / `EMAIL_PASS` | SMTP email |
+| `SANITY_PROJECT_ID` | Tech hub content |
 
 ---
 
-## 6. Boot the Application
+## 5. API Keys Reference
 
-### Development Mode
+| Service | Cost | Where to Register |
+|---------|------|-------------------|
+| **MongoDB Atlas** | Free tier | [cloud.mongodb.com](https://cloud.mongodb.com) |
+| **Redis** | Free (self-hosted) | `apt install redis-server` |
+| **MinIO** | Free (self-hosted) | [min.io](https://min.io) |
+| **LiveKit** | Free tier | [livekit.io](https://livekit.io) |
+| **M-Pesa Daraja** | Pay-per-use | [developer.safaricom.co.ke](https://developer.safaricom.co.ke) |
+| **Sanity CMS** | Free tier | [sanity.io](https://sanity.io) |
+| **Gmail SMTP** | Free | [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) |
 
-```bash
-# From the project root — boots both backend and frontend with hot reload
-npm run dev
-```
+### How to Get Each Key
 
-This command uses `concurrently` to run:
-- Backend server on `http://localhost:5001`
-- Frontend dev server on `http://localhost:3000`
+**M-Pesa (Safaricom Daraja):**
+1. Go to [developer.safaricom.co.ke](https://developer.safaricom.co.ke)
+2. Create account → Apps → Create New App
+3. Select "Lipa Na M-Pesa Online" product
+4. Copy Consumer Key, Consumer Secret, Passkey, and Shortcode
 
-> **For Public Access**: The frontend development server is configured to bind to all network interfaces (0.0.0.0:3000), making it accessible from external devices on the same network. Access the application at `http://YOUR_IP_ADDRESS:3000` where YOUR_IP_ADDRESS is your machine's IP address.
+**MongoDB Atlas:**
+1. Create free cluster at [cloud.mongodb.com](https://cloud.mongodb.com)
+2. Database Access → Add user with read/write access
+3. Network Access → Allow from anywhere (0.0.0.0/0) for dev
+4. Copy connection string, replace `<user>` and `<password>`
 
-> **To run the store for public access**: Use the special `dev:store` command which explicitly sets the HOST and PORT environment variables:
-> ```bash
-> npm run dev:store
-> ```
+**MinIO:**
+1. `minio server /data --console-address ":9001"`
+2. Open http://localhost:9001 → login with `minioadmin`/`minioadmin`
+3. Buckets auto-created on first start
 
-### Production Mode
+---
 
-```bash
-# Terminal 1 — start backend
-cd backend && npm start
+## 6. Features
 
-# Terminal 2 — build and serve frontend
-cd frontend && npm run build
-npx serve -s dist
-```
+### Core Business
+- Multi-department management — Finance, Inventory, CRM, Booking, Consultation
+- Role-based access — Super Admin, Admin, Staff with granular permissions
+- M-Pesa payments — STK push, callback handling, receipt generation
+- Public storefront — Products, services, bookings, consultations
+- Client portal — Order tracking, payment history, receipts
+
+### Real-time
+- Socket.IO — Live chat, presence tracking, notifications
+- Video conferencing — LiveKit-powered meetings
+- Meeting scheduler — Create, share, manage video meetings
+
+### Security
+- CSRF protection + JWT in httpOnly cookies
+- Rate limiting — tiered by role (public/write/auth)
+- Brute-force protection — progressive delays
+- Zod validation on all routes
+- Cookie consent banner — GDPR compliant with 6-month re-consent
+
+### Developer Experience
+- API versioning — `/api/v1/` with `/api/` backward alias
+- Swagger/OpenAPI docs
+- Redis caching with auto-invalidation
+- 102-point smoke test suite
 
 ---
 
@@ -210,391 +196,120 @@ npx serve -s dist
 
 | Role | URL | Credentials |
 |------|-----|-------------|
-| **Public** | `http://localhost:3000` | Browse freely |
-| **Public (External)** | `http://YOUR_IP_ADDRESS:3000` | Browse freely (replace YOUR_IP_ADDRESS with your machine's IP) |
-| **Super Admin** | `http://localhost:3000/admin/super` | Email: `codeofthoth@outlook.com` |
-| **Admin Portal** | `http://localhost:3000/admin` | Department-specific access |
-| **Staff Portal** | `http://localhost:3000/staff` | Company email-based access |
-
-> **Note**: Default passwords for seeded accounts are the same as emails. Change them immediately after first login.
+| **Public Storefront** | `http://localhost:3000` | Browse freely |
+| **Super Admin** | `http://localhost:3000/admin/super` | `codeofthoth@outlook.com` |
+| **Tech Hub** | `http://localhost:4321` | Public |
+| **MinIO Console** | `http://localhost:9001` | `minioadmin` / `minioadmin` |
 
 ---
 
-## 8. Department URLs
+## 8. Tech Hub (Astro)
 
-Each department has its dedicated admin panel:
-
-| Department | URL |
-|------------|-----|
-| **Finance** | `http://localhost:3000/admin/finance` |
-| **Inventory** | `http://localhost:3000/admin/inventory` |
-| **CRM** | `http://localhost:3000/admin/crm` |
-| **Booking** | `http://localhost:3000/admin/booking` |
-| **Consultation** | `http://localhost:3000/admin/consultation` |
-| **Service** | `http://localhost:3000/admin/service` |
-| **Ticketing** | `http://localhost:3000/admin/tickets` |
-| **Analytics** | `http://localhost:3000/admin/analytics` |
-
----
-
-## 9. Environment Variables Reference
-
-Complete `.env` template for `backend/.env`:
-
-```env
-# Database
-MONGO_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/pcl
-MONGO_LOCAL=mongodb://localhost:27017/pcl  # fallback for local dev
-
-# Authentication
-JWT_SECRET=<32-char-random-string>
-JWT_EXPIRE=30d
-SUPER_ADMIN_EMAIL=codeofthoth@outlook.com
-
-# M-Pesa Daraja API
-MPESA_ENV=sandbox                    # 'sandbox' or 'production'
-MPESA_CONSUMER_KEY=<your_consumer_key>
-MPESA_CONSUMER_SECRET=<your_consumer_secret>
-MPESA_SHORTCODE=<your_shortcode>
-MPESA_PASSKEY=<your_passkey>
-MPESA_CALLBACK_URL=https://<your-domain>/api/billing/mpesa-callback
-MPESA_INITIATOR_USERNAME=<initiator_username>
-MPESA_INITIATOR_SECURITY_CREDENTIAL=<security_credential>
-
-# Africa's Talking
-AT_USERNAME=sandbox                 # 'sandbox' for testing
-AT_API_KEY=<your_api_key>
-AT_SHORTCODE=<short_code>
-AT_PURCHASE_KEY=<purchase_key>
-
-# Email (SendGrid recommended)
-SENDGRID_API_KEY=<your_sendgrid_key>
-EMAIL_FROM=noreply@pcl.co.ke
-
-# Cloudinary (file uploads)
-CLOUDINARY_CLOUD_NAME=<cloud_name>
-CLOUDINARY_API_KEY=<api_key>
-CLOUDINARY_API_SECRET=<api_secret>
-
-# Server
-PORT=5001
-NODE_ENV=development                # 'development', 'production', or 'test'
-CLIENT_URL=http://localhost:3000    # frontend URL for CORS
-SERVER_URL=http://localhost:5001    # backend URL for API calls
-
-# Seed script passwords (REMOVE after seeding)
-SEED_SUPER_ADMIN_PASSWORD=<password>
-SEED_ADMIN_PASSWORD=<password>
+```bash
+cd tech-hub
+npm install
+npm run dev    # → http://localhost:4321
 ```
 
 ---
 
-## 10. Production Build
+## 9. API Documentation
 
-### Frontend Build
+### Versioning
 
-```bash
-cd frontend
-npm run build
-```
+All endpoints prefixed with `/api/v1/` (backward-compatible `/api/` alias accepted).
 
-### Backend Build
+### Rate Limits
 
-Node.js applications don't require compilation, but ensure all production dependencies are installed:
+| Tier | Limit | Applies To |
+|------|-------|-----------|
+| Public | 200 req/15min | Unauthenticated reads |
+| Write | 30 req/15min | Authenticated mutations |
+| Auth | 10 req/15min | Login, register, password reset |
 
-```bash
-cd backend
-npm ci --only=production
-```
+### Key Endpoints
 
-### Docker Build
-
-The project includes Docker support for containerized deployment:
-
-```bash
-# Build and run with Docker Compose
-docker-compose up --build
-```
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `GET` | `/api/health` | No | Health check |
+| `POST` | `/api/v1/auth/login` | No | Login |
+| `GET` | `/api/v1/products` | No | List products |
+| `POST` | `/api/v1/orders` | Yes | Create order |
+| `GET` | `/api/v1/meetings/rooms` | Yes | List meetings |
+| `GET` | `/api/docs` | No | Swagger UI |
 
 ---
 
-## 11. CI/CD Pipeline
+## 10. Security
 
-The project includes a comprehensive CI/CD pipeline using GitHub Actions:
-
-### CI (Continuous Integration)
-- Runs on every push and pull request to `main` and `develop` branches
-- Includes:
-  - **Backend**: Linting (`npm run lint`), testing (Jest), security audits (npm audit), syntax validation, and parsing checks for server.js and seed.js
-  - **Frontend**: Linting (ESLint), type checking (TypeScript), component tests (Vitest), and production build validation
-  - Security scanning with npm audit
-  - Code coverage reports
-  - End-to-end simulation smoke tests with MongoDB service
-  - Code quality checks
-- Uses Node.js v20.x with dependency caching for faster builds
-- Runs tests with a dedicated test database connection (mongodb://localhost:27017/pcl_ci_test)
-
-### CD (Continuous Deployment)
-- Runs on every push to `main` branch, manual triggers, and published releases
-- Supports multiple deployment targets:
-
-#### 1. PythonAnywhere (Primary Backend)
-- Requires secrets: `PYTHONANYWHERE_API_TOKEN`, `PYTHONANYWHERE_USERNAME`, `PYTHONANYWHERE_DOMAIN`, `PYTHONANYWHERE_HOST`
-- Optional for paid accounts: `PYTHONANYWHERE_SSH_PRIVATE_KEY` for direct code sync via rsync
-- Optional for free accounts: `PYTHONANYWHERE_CONSOLE_ID` for code sync via Console API
-- Automatically reloads the web application after deployment
-
-#### 2. Vercel (Frontend)
-- Requires secrets: `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_ORG_ID`, `VITE_API_URL`
-- Deploys frontend as a static site with automatic SSL and global CDN
-
-#### 3. Heroku (Alternative Backend)
-- Requires secrets: `HEROKU_API_KEY`, `HEROKU_APP_NAME`, `HEROKU_EMAIL`
-- Environment variables are securely passed during deployment
-- Includes rollback capability on health check failure
-
-#### 4. Docker Hub (Container Images)
-- Requires secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`
-- Builds and pushes both backend and frontend Docker images
-- Tags images with commit SHA and latest tag
-- Uses build caching for faster deployments
-
-### Common CI/CD Issues and Solutions
-
-#### Backend Test Failures
-- Ensure all environment variables are properly set for CI tests
-- Check that JWT_SECRET, NODE_ENV, and MONGO_URI are configured for the test environment
-- Verify that all backend dependencies are correctly installed with `npm ci`
-
-#### Frontend Build Failures
-- Verify that VITE_API_URL is set during build process
-- Check that all frontend dependencies are properly installed
-- Ensure that the build process can resolve all imports and dependencies
-
-#### Security Scan Failures
-- Address moderate and high severity vulnerabilities with `npm audit fix`
-- Review Trivy security scan results and update vulnerable packages
-- Consider using `npm audit --audit-level=moderate` to identify specific issues
-
-#### Dependency Installation Conflicts
-- Use `npm ci` instead of `npm install` for consistent dependency resolution
-- The pipeline uses `--legacy-peer-deps` flag to handle known Babel/ESLint peer dependency conflicts
-- Clear npm cache periodically: `npm cache clean --force`
-
-### Configuration
-- Located in `.github/workflows/ci.yml` and `.github/workflows/cd.yml`
-- Requires secrets to be configured in GitHub repository settings
-- Uses environment protection rules for production deployments
-- Supports conditional deployment based on available secrets
-- See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed setup instructions
+| Layer | Implementation |
+|-------|---------------|
+| **XSS** | JWT in httpOnly cookies |
+| **CSRF** | Double-submit cookie with signed tokens |
+| **Brute-force** | Progressive delays per IP |
+| **Rate limiting** | Tiered: public, write, auth |
+| **Input validation** | Zod schemas on all routes |
+| **Security headers** | Helmet: CSP, HSTS, X-Content-Type-Options |
+| **Webhook verification** | M-Pesa callback signature validation |
 
 ---
 
-## 12. Deployment
+## 11. Performance
 
-The application can be deployed to various platforms:
-
-### PythonAnywhere
-> Recommended for backend deployment
-- Backend runs as a Node.js application
-- Uses the PythonAnywhere API to reload the application
-- Supports both free and paid plans
-
-### Vercel (Frontend)
-> Recommended for frontend deployment
-- Frontend deployed as a static site
-- Automatic SSL certificate
-- Global CDN distribution
-
-#### Preparing for Vercel Deployment
-
-Before deploying to Vercel, ensure you resolve dependency conflicts that may occur during the build process:
-
-1. Navigate to the frontend directory:
-```bash
-cd frontend
-```
-
-2. Install dependencies with legacy peer deps flag to handle known conflicts:
-```bash
-npm install --legacy-peer-deps
-```
-
-3. Build the application locally to verify it works:
-```bash
-npm run build
-```
-
-#### Deploying to Vercel
-
-Option 1: Using Vercel CLI:
-
-1. Install the Vercel CLI:
-```bash
-npm i -g vercel
-```
-
-2. Navigate to the frontend directory:
-```bash
-cd frontend
-```
-
-3. Link your project to Vercel:
-```bash
-vercel
-```
-
-4. Set the build command to:
-```bash
-npm run vercel-build
-```
-
-5. Set the output directory to:
-```bash
-dist
-```
-
-6. Add the required environment variables:
-- `VITE_API_URL`: Your backend API URL (e.g., https://your-backend-app.onrender.com/api)
-
-7. Deploy:
-```bash
-vercel --prod
-```
-
-Option 2: Connect your GitHub repository to Vercel for automatic deployments on push.
-
-#### Vercel Configuration Notes
-
-- The project includes a [vercel.json](frontend/vercel.json) file in the frontend directory with proper routing configuration
-- The build output directory is set to `dist` (changed from `build` for Vercel compatibility)
-- Chunk splitting is configured to optimize bundle sizes
-- API routes are properly proxied to your backend service
-
-### Heroku
-> Alternative backend deployment
-- Platform-as-a-Service solution
-- Easy scaling and monitoring
-
-### Docker
-> Containerized deployment
-- Multi-platform support
-- Consistent environments
-- Easy scaling
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
+- **Redis caching** — Product listings, dashboard stats (30s TTL)
+- **MongoDB indexes** — Covering indexes for aggregations
+- **Connection pooling** — min 5, max 20 connections
+- **Compression** — Brotli + gzip via Vite proxy
 
 ---
 
-## 13. Troubleshooting
+## 12. Troubleshooting
 
-### `npm install` fails
-
+**Backend crashes on startup:**
 ```bash
-# Use legacy peer deps flag
-npm install --legacy-peer-deps --prefix backend
-npm install --legacy-peer-deps --prefix frontend
+cat backend/.env | grep -v "^#" | grep -v "^$"
+LOG_LEVEL=debug node backend/server.js
 ```
 
-### CI/CD Pipeline Failures
+**M-Pesa STK push not arriving:**
+- Ensure `MPESA_CALLBACK_URL` is publicly reachable HTTPS
+- For local dev: use ngrok
 
-#### Backend lint, test, audit failures
-- Run local tests before pushing: `npm test` in the backend directory
-- Check linting issues: `npm run lint` (if available) - Note: The project now includes a lint script
-- Verify all environment variables are properly set for tests
-- Make sure all required dependencies are listed in package.json
-- **Fixed failing tests**: The presence manager test issue with admin availability detection has been resolved. The `isAnyAdminOnlineForDept` function in [socket/presence.manager.js](backend/socket/presence.manager.js) now properly considers admin availability status.
-- **Security improvements**: Added linting capabilities and improved security practices
+**Rate limiting too aggressive:**
+Adjust in `backend/middleware/rateLimiter.js`
 
-#### Frontend lint, test, build failures
-- Run local build: `npm run build` in the frontend directory
-- Check for TypeScript/JavaScript errors: `npx tsc --noEmit` 
-- Verify all imports are properly resolved
-- Run component tests: `npm test` in the frontend directory
-
-#### Security scan failures
-- Update vulnerable packages: `npm audit fix`
-- Check for high severity vulnerabilities: `npm audit --audit-level=high`
-- Review security warnings and address critical issues before merging
-- **Known vulnerabilities**: The backend has several vulnerabilities, particularly in `axios` (via africastalking), `js-yaml`, `lodash`, and `xlsx` packages. Run `npm audit` to see details.
-
-#### Vercel deployment failures
-- Verify frontend builds successfully: `npm run build` in frontend directory
-- Check environment variables are properly configured in Vercel dashboard
-- Ensure all dependencies are in production dependencies, not devDependencies
-- Try clearing build cache in Vercel dashboard if persistent build errors occur
-
-### Backend crashes on startup
-
-```bash
-# Check your .env is complete
-cat backend/.env | grep -v "^#"
-
-# Run with verbose logging
-NODE_ENV=development node backend/server.js
-```
-
-### `DB: disconnected` on health check
-
-- Verify `MONGO_URI` in `backend/.env` is correct
-- Check your MongoDB Atlas IP whitelist includes your current IP
-- Run: `curl http://localhost:5001/api/health`
-
-### M-Pesa STK push not arriving
-
-- `MPESA_CALLBACK_URL` must be a publicly reachable HTTPS URL
-- For local development use [ngrok](https://ngrok.com): `ngrok http 5001`
-- Set `MPESA_CALLBACK_URL=https://<ngrok-id>.ngrok.io/api/billing/mpesa-callback`
-- Use `AT_USERNAME=sandbox` and the sandbox API key for testing
-
-### Socket.io not connecting
-
-- Ensure the browser is pointing to `http://localhost:3000` (not `5001` directly)
-- The frontend proxy forwards `/socket.io` requests to port `5001` automatically
-- Check that `CLIENT_URL=http://localhost:3000` is set in `backend/.env`
-
-### "Too many requests" error
-
-- The API rate limit is **100 requests per 15 minutes per IP** in production
-- The auth endpoint limit is **10 attempts per 15 minutes per IP**
-- In development these limits are relaxed
-
-### Staff portal login fails
-
-- Company email addresses must be provisioned by the Super Admin first
-- Go to `/admin/super/email` → approve the email request → staff receives a setup link
+**Redis connection refused (non-fatal):**
+Redis is optional — app works without it.
 
 ---
 
-## Project Structure
+## 13. Project Structure
 
 ```
 pcl_solutions/
 ├── backend/
-│   ├── config/          # DB, Cloudinary, AT, mailer
-│   ├── controllers/     # 21 route controllers
-│   ├── middleware/       # auth, errorHandler, mpesa, upload
-│   ├── models/          # 24 Mongoose schemas
-│   ├── routes/          # 20 Express route files
-│   ├── socket.js        # Socket.io server + emitters
-│   ├── server.js        # Express app entry point
-│   └── seed.js          # Database seed script
+│   ├── config/           # MongoDB, MinIO, Redis, LiveKit
+│   ├── controllers/      # Route controllers
+│   ├── middleware/        # Auth, CSRF, rate limit, validation
+│   ├── models/           # 37 Mongoose schemas
+│   ├── routes/           # 43 route files (versioned /api/v1/)
+│   ├── test/             # Smoke test suite
+│   ├── utils/            # Logger, cache, error tracker
+│   └── server.js         # Entry point
 ├── frontend/
-│   └── src/
-│       ├── admin/       # Dept admin panels + Super Admin
-│       ├── components/  # Shared UI components
-│       ├── hooks/       # useSocket, custom hooks
-│       ├── pages/       # Public + staff + client portals
-│       └── utils/       # api.js axios instance
-├── .github/
-│   └── workflows/       # CI/CD pipelines
-├── docker-compose.yml   # Docker configuration
-├── DEPLOYMENT.md        # Deployment guide
-├── package.json         # Root scripts (npm run dev)
-└── README.md            # This file
+│   ├── src/
+│   │   ├── admin/        # Admin panels
+│   │   ├── components/   # Shared UI
+│   │   ├── pages/        # Public, staff, client portals
+│   │   └── utils/        # API, analytics, error tracker
+│   └── vite.config.js    # Dev server with API proxy
+├── tech-hub/             # Astro static site
+├── .github/workflows/    # CI/CD
+├── Makefile              # Native dev commands
+└── README.md
 ```
 
 ---
 
 © 2026 Postera Crescam Laude · PCL Centre, Nairobi County, Kenya  
-Super Administrator: **Thoth of Codes** · `codeofthoth@outlook.com` · [github.com/ThothofCodes](https://github.com/ThothofCodes)
+Super Administrator: **Thoth of Codes** · `codeofthoth@outlook.com`

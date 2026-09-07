@@ -45,7 +45,7 @@ class ConnectionPoolManager {
       heartbeatFrequencyMS = 10000, // 10 seconds
       retryWrites = true,
       retryReads = true,
-      compressors = ['snappy', 'zlib'],
+      compressors = ['zlib'],
     } = options;
 
     return {
@@ -70,9 +70,6 @@ class ConnectionPoolManager {
 
       // Additional options for high-traffic scenarios
       ...(isProduction && {
-        // Use unified topology
-        useUnifiedTopology: true,
-
         // Enable auto index in production (disable for better performance)
         autoIndex: false,
 

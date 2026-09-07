@@ -1,0 +1,270 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { sanityClient, sanityReady } from '../../lib/sanity';
+
+const category = Astro.url.searchParams.get('category');
+const page = parseInt(Astro.url.searchParams.get('page') || '1');
+const limit = 20;
+const start = (page - 1) * limit;
+
+const categoryFilter = category ? `&& category == "${category}"` : '';
+
+let facts: any[] = [];
+let total = 0;
+
+if (sanityReady) {
+  const data = await sanityClient.fetch(`{
+    "facts": *[_type == "fact" ${categoryFilter}] | order(publishedAt desc) [${start}...${start + limit}] {
+      _id, title, fact, source, category, publishedAt
+    },
+    "total": count(*[_type == "fact" ${categoryFilter}])
+  }`);
+  facts = data.facts || [];
+  total = data.total || 0;
+}
+
+let allCategories: string[] = [];
+if (sanityReady) {
+  allCategories = await sanityClient.fetch(
+    'array(*[_type == "fact"] | order(category asc).category)'
+  );
+}
+
+const totalPages = Math.ceil(total / limit);
+
+const CATEGORY_COLORS: Record<string, string> = {
+  history: '#a78bfa',
+  innovation: '#00ff88',
+  internet: '#2BB6A3',
+  gaming: '#ff3366',
+  space: '#ffd700',
+  general: '#4a6a8a',
+};
+---
+
+<Layout title="Tech Facts — PCL Tech Hub" description="Interesting tech facts and trivia to expand your knowledge">
+  <main class="facts-page">
+    <div class="container">
+      <header class="page-header">
+        <h1>🧠 Tech Facts</h1>
+        <p>Interesting facts and trivia from the world of technology</p>
+      </header>
+
+      <!-- Category Filter -->
+      {allCategories.length > 0 && (
+        <div class="filters">
+          <a href="/facts" class={!category ? 'filter active' : 'filter'}>All</a>
+          {allCategories.map((cat) => (
+            <a
+              href={`/facts?category=${cat}`}
+              class={category === cat ? 'filter active' : 'filter'}
+            >
+              {cat}
+            </a>
+          ))}
+        </div>
+      )}
+
+      <!-- Facts Grid -->
+      <div class="facts-grid">
+        {facts.map((fact) => (
+          <div class="fact-card">
+            <div class="fact-header">
+              <span
+                class="fact-category"
+                style={`background: ${CATEGORY_COLORS[fact.category] || '#4a6a8a'}`}
+              >
+                {fact.category || 'Tech Fact'}
+              </span>
+              {fact.publishedAt && (
+                <time>
+                  {new Date(fact.publishedAt).toLocaleDateString('en-KE', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </time>
+              )}
+            </div>
+            {fact.title && <h3>{fact.title}</h3>}
+            <p class="fact-text">&ldquo;{fact.fact}&rdquo;</p>
+            {fact.source && <p class="fact-source">— {fact.source}</p>}
+          </div>
+        ))}
+      </div>
+
+      {facts.length === 0 && (
+        <div class="empty-state">
+          <p style="font-size: 2rem;">🧠</p>
+          <p>No facts available{category ? ` in "${category}"` : ''} yet.</p>
+          {category && <a href="/facts" class="clear-filter">Clear filter</a>}
+        </div>
+      )}
+
+      <!-- Pagination -->
+      {totalPages > 1 && (
+        <div class="pagination">
+          {page > 1 && (
+            <a
+              href={`/facts?page=${page - 1}${category ? `&category=${category}` : ''}`}
+              class="page-link"
+            >
+              ← Previous
+            </a>
+          )}
+          <span class="page-info">Page {page} of {totalPages}</span>
+          {page < totalPages && (
+            <a
+              href={`/facts?page=${page + 1}${category ? `&category=${category}` : ''}`}
+              class="page-link"
+            >
+              Next →
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem; }
+  .facts-page { padding: 2rem 0; }
+
+  .page-header { text-align: center; margin-bottom: 2rem; }
+  .page-header h1 { font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; }
+  .page-header p { color: #A9C4BE; }
+
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    justify-content: center;
+  }
+
+  .filter {
+    padding: 0.4rem 1rem;
+    border-radius: 99px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none;
+    color: #A9C4BE;
+    background: rgba(43, 182, 163, 0.1);
+    border: 1px solid rgba(43, 182, 163, 0.3);
+    transition: all 0.2s;
+  }
+
+  .filter:hover { background: rgba(43, 182, 163, 0.2); }
+  .filter.active { background: #EE6100; color: #000; border-color: #EE6100; }
+
+  .facts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+  }
+
+  .fact-card {
+    background: rgba(238, 97, 0, 0.06);
+    border: 1px solid rgba(238, 97, 0, 0.25);
+    border-radius: 10px;
+    padding: 1.5rem;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+
+  .fact-card:hover {
+    border-color: #EE6100;
+    transform: translateY(-2px);
+  }
+
+  .fact-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+  }
+
+  .fact-category {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 99px;
+    color: #000;
+    text-transform: capitalize;
+  }
+
+  .fact-header time {
+    font-size: 0.75rem;
+    color: #4a6a8a;
+  }
+
+  .fact-card h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: #F4F1EA;
+  }
+
+  .fact-text {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: #c0d8f0;
+    font-style: italic;
+    margin-bottom: 0.75rem;
+  }
+
+  .fact-source {
+    font-size: 0.8rem;
+    color: #4a6a8a;
+    font-style: normal;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #4a6a8a;
+  }
+
+  .empty-state p { margin-bottom: 0.5rem; }
+
+  .clear-filter {
+    display: inline-block;
+    margin-top: 1rem;
+    padding: 0.4rem 1rem;
+    background: rgba(238, 97, 0, 0.2);
+    color: #EE6100;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.85rem;
+  }
+
+  .clear-filter:hover { background: #EE6100; color: #000; }
+
+  .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+
+  .page-link {
+    padding: 0.5rem 1rem;
+    background: rgba(238, 97, 0, 0.2);
+    color: #EE6100;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: background 0.2s;
+  }
+
+  .page-link:hover { background: #EE6100; color: #000; }
+
+  .page-info { color: #4a6a8a; font-size: 0.9rem; }
+
+  @media (max-width: 768px) {
+    .facts-grid { grid-template-columns: 1fr; }
+  }
+</style>

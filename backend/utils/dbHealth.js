@@ -196,11 +196,6 @@ class DatabaseHealthMonitor {
         // Get collection stats
         const stats = await coll.stats();
 
-        // Calculate index usage
-        const _totalOps = indexAccessStats.reduce((sum, stat) => {
-          return sum + (stat.accesses?.ops || 0);
-        }, 0);
-
         indexStats[collection.name] = {
           documentCount: stats.count || 0,
           storageSize: stats.storageSize || 0,

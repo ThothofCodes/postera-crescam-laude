@@ -35,8 +35,13 @@ const connectDB = async () => {
     console.log(`✅  MongoDB connected with optimized pooling: ${mongoose.connection.host}`);
   } catch (err) {
     console.error(`❌  MongoDB connection failed: ${err.message}`);
-    console.error('    Check your MONGO_URI in backend/.env and ensure your IP is whitelisted in Atlas.\n');
-    // Don't call process.exit — let health endpoint report the state
+    console.error('    Starting in degraded mode — health endpoint will report degraded status.\n');
+    // Don't throw — server starts in degraded mode and health endpoint reports state
+    // Auto-retry connection after 10 seconds
+    setTimeout(() => {
+      console.log('🔄  Retrying MongoDB connection...');
+      connectDB().catch(() => {});
+    }, 10000);
   }
 };
 

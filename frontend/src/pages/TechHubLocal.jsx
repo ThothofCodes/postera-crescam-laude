@@ -142,6 +142,19 @@ export default function TechHubLocal() {
     loadContent();
   }, [loadContent]);
 
+  // Dynamically set favicon to PCL logo when on Tech Hub page
+  useEffect(() => {
+    const prevFavicon = document.querySelector('link[rel="icon"]')?.href || '';
+    document.title = '📡 Tech Hub | Postera Crescam Laude';
+    // Set favicon to the PCL logo SVG
+    const links = document.querySelectorAll('link[rel="icon"]');
+    links.forEach((l) => { l.href = '/logo.svg'; l.type = 'image/svg+xml'; });
+    return () => {
+      document.title = 'Postera Crescam Laude | Nairobi\'s Tech Hub';
+      links.forEach((l) => { l.href = prevFavicon; });
+    };
+  }, []);
+
   // Filtered articles based on search
   const filteredArticles = articles.filter((a) =>
     a.title?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -214,7 +227,7 @@ export default function TechHubLocal() {
               }}
             />
             <a
-              href="https://blog.pcl.co.ke"
+              href="https://benevolent-tulumba-e97633.netlify.app"
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -501,7 +514,7 @@ export default function TechHubLocal() {
           Want more in-depth content? Visit our full Tech Hub.
         </p>
         <a
-          href="https://blog.pcl.co.ke"
+          href="https://benevolent-tulumba-e97633.netlify.app"
           target="_blank"
           rel="noopener noreferrer"
           style={{

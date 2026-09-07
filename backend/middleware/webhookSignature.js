@@ -235,9 +235,11 @@ async function webhookSignatureMiddleware(req, res, next) {
     const checkoutRequestId = req.body?.Body?.stkCallback?.CheckoutRequestID;
 
     if (!checkoutRequestId) {
-      // No callback body yet — skip verification (will be caught later)
-      req.webhookVerification = { verified: false, reason: 'No checkout request ID in body' };
-      return next();
+      // No checkout request ID — cannot verify, always reject
+      return res.status(400).json({
+        message: 'Webhook payload missing CheckoutRequestID',
+        code: 'WEBHOOK_MISSING_REQUEST_ID',
+      });
     }
 
     const result = await verifySignature(checkoutRequestId, signature, timestamp);
@@ -246,15 +248,15 @@ async function webhookSignatureMiddleware(req, res, next) {
     if (!result.valid) {
       console.warn(`[WEBHOOK] Signature verification failed: ${result.reason}`);
 
-      // In production, reject the request
-      if (process.env.NODE_ENV === 'production') {
+      // Reject in production and test — only allow through in explicit development mode
+      if (process.env.NODE_ENV !== 'development') {
         return res.status(403).json({
           message: 'Webhook signature verification failed',
           code: 'WEBHOOK_SIGNATURE_INVALID',
         });
       }
 
-      // In development, log warning but continue (for testing)
+      // In development only, log warning but continue (for sandbox testing)
       console.warn('[WEBHOOK] Allowing request in development mode despite invalid signature');
     } else {
       console.log(`[WEBHOOK] Signature verified for ${checkoutRequestId} (secret: ${result.secretId}, status: ${result.secretStatus})`);

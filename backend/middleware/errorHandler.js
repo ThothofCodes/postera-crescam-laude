@@ -3,6 +3,7 @@
 
 const logger = require('../utils/logger');
 const { AppError } = require('../utils/errors');
+const { captureBackendError } = require('../controllers/errorTracker');
 
 const errorHandler = (err, req, res, next) => {
   const isDev = process.env.NODE_ENV === 'development';
@@ -15,6 +16,9 @@ const errorHandler = (err, req, res, next) => {
     statusCode: err.statusCode || err.status || 500,
     stack: err.stack,
   });
+
+  // ── Capture to error tracking database (non-blocking) ────────────────────
+  captureBackendError(err, req);
 
   // ── AppError (our custom operational errors) ────────────────────────────────
   if (err instanceof AppError) {

@@ -31,7 +31,7 @@ export default function Footer({ variant = 'public' }) {
                 <PCLLogo size={28} showText={true} textSize="13px" />
               </div>
               <p style={{ fontSize: 13, color: '#6A8A82', lineHeight: 1.7, margin: 0 }}>
-                Your one-stop technology &amp; digital services hub in PCL Centre, Nairobi County, Kenya.
+                Your one-stop technology &amp; digital services hub in Ruai Town, Nairobi County, Kenya.
               </p>
               <p style={{ fontSize: 11, color: '#6A8A82', marginTop: 8, fontFamily: "'Share Tech Mono',monospace", letterSpacing: '0.05em' }}>
                 Empowering Kenya's Digital Future
@@ -53,7 +53,7 @@ export default function Footer({ variant = 'public' }) {
             {/* Contact */}
             <div>
               <p style={{ fontSize: 12, fontWeight: 400, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#EE6100', marginBottom: '0.85rem', fontFamily: "'Share Tech Mono',monospace" }}>Contact</p>
-              {[['📍','PCL Centre, Nairobi'],['📞','IP Phone — coming soon'],['✉️','info@posteracrescamlaude.co.ke']].map(([icon, text]) => (
+              {[['📍','Ruai Town, Nairobi'],['📞','IP Phone — coming soon'],['✉️','info@posteracrescamlaude.co.ke']].map(([icon, text]) => (
                 <p key={text} style={{ fontSize: 13, color: '#6A8A82', marginBottom: 7, display: 'flex', gap: 8, fontFamily: "'Poppins', sans-serif" }}>
                   <span>{icon}</span><span>{text}</span>
                 </p>

@@ -122,7 +122,7 @@ export default function TechInsights() {
 
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
             <a
-              href="https://blog.pcl.co.ke"
+              href="https://benevolent-tulumba-e97633.netlify.app"
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -354,7 +354,7 @@ export default function TechInsights() {
           Visit our full Tech Hub for in-depth articles, tutorials, and the latest tech news.
         </p>
         <a
-          href="https://blog.pcl.co.ke"
+          href="https://benevolent-tulumba-e97633.netlify.app"
           target="_blank"
           rel="noopener noreferrer"
           style={{

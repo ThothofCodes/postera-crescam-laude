@@ -4,6 +4,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api } from '../utils/api';
+import { setSocketAuthToken } from '../hooks/useSocket';
 
 // Backward-compatible hook that matches old AuthContext API
 export const useAuth = () => {
@@ -42,7 +43,9 @@ export const useAuthStore = create(
             password,
             ...(deviceFingerprint && { deviceFingerprint, deviceName }),
           });
-          localStorage.setItem('token', data.token);
+          // JWT is in httpOnly cookie for API calls (XSS protection)
+          // Token in response body is stored in-memory only for Socket.IO auth
+          if (data.token) setSocketAuthToken(data.token);
 
           // Clear admin auth store to prevent dual sessions
           localStorage.removeItem('adminToken');
@@ -61,7 +64,8 @@ export const useAuthStore = create(
       },
 
       logout: () => {
-        localStorage.removeItem('token');
+        // Clear httpOnly cookie via server endpoint
+        api.post('/auth/logout').catch(() => {});
         set({ user: null, loading: false, error: null });
       },
 
@@ -78,21 +82,25 @@ export const useAuthStore = create(
         }
 
         // If admin token exists, skip regular auth init entirely — prevent dual sessions
-        if (localStorage.getItem('adminToken')) {
+        if (localStorage.getItem('adminToken') || localStorage.getItem('pcl-admin-auth')) {
           set({ user: null, loading: false });
           return;
         }
 
-        const token = localStorage.getItem('token');
-        if (!token) {
-          set({ loading: false });
+        // Only check /auth/me if there's evidence of an existing session
+        // (persisted user state or pcl-auth cookie) to avoid SESSION_KILLED redirect on public pages
+        const hasPersistedUser = !!get().user;
+        if (!hasPersistedUser) {
+          set({ user: null, loading: false });
           return;
         }
+
+        // JWT is in httpOnly cookie — verify existing session is still valid
         try {
           const { data } = await api.get('/auth/me');
           set({ user: data, loading: false });
         } catch {
-          localStorage.removeItem('token');
+          // No valid session cookie — user is not logged in
           set({ user: null, loading: false });
         }
       },

@@ -7,6 +7,10 @@ import { useAuth, useAuthStore } from './store/authStore';
 import { useCartStore } from './store/cartStore';
 import { useAdminStore, useAdminAuth, initializeAdminAuth } from './store/adminStore';
 import useSocket from './hooks/useSocket';
+import useInactivityTimer from './hooks/useInactivityTimer';
+import { initCsrf } from './utils/api';
+import { trackPageView } from './utils/analytics';
+import { initErrorTracker } from './utils/errorTracker';
 
 import AdminPrivateRoute from './admin/components/AdminPrivateRoute';
 import AdminLayout from './admin/components/AdminLayout';
@@ -32,6 +36,7 @@ const ConsultLanding = React.lazy(() => import('./pages/ConsultLanding'));
 const ConsultBook = React.lazy(() => import('./pages/ConsultBook'));
 const HelpDesk = React.lazy(() => import('./pages/HelpDesk'));
 const TechInsights = React.lazy(() => import('./pages/TechInsights'));
+const CookiePolicy = React.lazy(() => import('./pages/CookiePolicy'));
 const TechHubLocal = React.lazy(() => import('./pages/TechHubLocal'));
 const BlogManagement = React.lazy(() => import('./admin/pages/shared/BlogManagement'));
 const TechStudio = React.lazy(() => import('./admin/pages/super/TechStudio'));
@@ -82,6 +87,9 @@ const DepartmentAdminAllocation = React.lazy(() => import('./admin/pages/super/D
 const DepartmentManagement = React.lazy(() => import('./admin/pages/super/DepartmentManagement'));
 const DepartmentAnalytics = React.lazy(() => import('./admin/pages/super/DepartmentAnalytics'));
 const PaymentHistory = React.lazy(() => import('./admin/pages/super/PaymentHistory'));
+const MeetingScheduler = React.lazy(() => import('./admin/pages/super/MeetingScheduler'));
+const MonetizationDashboard = React.lazy(() => import('./admin/pages/super/MonetizationDashboard'));
+const ErrorTracker = React.lazy(() => import('./admin/pages/super/ErrorTracker'));
 const InternetLanding = React.lazy(() => import('./admin/pages/internet/Landing'));
 const ISPClients = React.lazy(() => import('./admin/pages/internet/Clients'));
 const WebDevLanding = React.lazy(() => import('./admin/pages/webdev/Landing'));
@@ -95,6 +103,7 @@ const DynamicDepartmentLanding = React.lazy(() => import('./admin/pages/DynamicD
 const GovDocs = React.lazy(() => import('./admin/pages/govadmin/GovDocs'));
 
 import DBStatusBanner from './components/DBStatusBanner';
+import CookieConsent from './components/CookieConsent';
 import BootScreen from './components/BootScreen';
 import ErrorBoundary from './components/ErrorBoundary';
 import PageTransition from './components/PageTransition';
@@ -104,6 +113,7 @@ function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    trackPageView(pathname, document.title);
   }, [pathname]);
   return null;
 }
@@ -151,6 +161,9 @@ export default function App() {
     };
   }, [bootComplete]);
 
+  // Fetch CSRF token on mount (sets _csrf cookie for CSRF protection)
+  useEffect(() => { initCsrf(); initErrorTracker(); }, []);
+
   // Initialize auth state from persisted token
   useEffect(() => {
     useAuthStore.getState().initialize();
@@ -159,6 +172,21 @@ export default function App() {
 
   // Initialize global socket connection
   useSocket();
+
+  // Auto-logout on inactivity (30 min default, configurable via SESSION_IDLE_TIMEOUT_MINUTES)
+  const handleIdleLogout = useCallback(() => {
+    const hasAdminToken = !!localStorage.getItem('adminToken');
+    const hasUser = !!useAuthStore.getState().user;
+    if (hasAdminToken) {
+      useAdminAuth.getState().logout();
+    } else if (hasUser) {
+      useAuthStore.getState().logout();
+    }
+    window.location.href = '/login';
+  }, []);
+
+  const idleTimeoutMs = parseInt(import.meta.env.VITE_SESSION_IDLE_TIMEOUT_MINUTES || '30', 10) * 60 * 1000;
+  useInactivityTimer(handleIdleLogout, idleTimeoutMs);
 
   return (
     <div data-testid="app-container">
@@ -183,6 +211,7 @@ export default function App() {
                 <Route path="/maintenance" element={<div>Maintenance Mode</div>} />
                 <Route path="/offline" element={<div>Offline</div>} />
                 <Route path="/legal" element={<div>Legal</div>} />
+                <Route path="/cookie-policy" element={<React.Suspense fallback={<Spinner />}><CookiePolicy /></React.Suspense>} />
                 <Route path="/contact" element={<Contact />} />
 
                 {/* ── Direct support chat route ── */}
@@ -235,8 +264,9 @@ export default function App() {
                   <Route path="chat" element={<MessagesPage />} />
                   <Route path="staff-invitation" element={<StaffInvitation color="#a78bfa" />} />                   <Route path="health" element={<React.Suspense fallback={<Spinner />}><HealthDashboard /></React.Suspense>} />
                    <Route path="blog" element={<React.Suspense fallback={<Spinner />}><BlogManagement /></React.Suspense>} />
-                   <Route path="studio" element={<React.Suspense fallback={<Spinner />}><TechStudio /></React.Suspense>} />
-                   <Route path="meetings" element={<React.Suspense fallback={<Spinner />}><MeetingScheduler /></React.Suspense>} />
+                   <Route path="studio" element={<React.Suspense fallback={<Spinner />}><TechStudio /></React.Suspense>} />                    <Route path="meetings" element={<React.Suspense fallback={<Spinner />}><MeetingScheduler /></React.Suspense>} />
+                    <Route path="monetization" element={<React.Suspense fallback={<Spinner />}><MonetizationDashboard /></React.Suspense>} />
+                    <Route path="errors" element={<React.Suspense fallback={<Spinner />}><ErrorTracker /></React.Suspense>} />
                 </Route>
 
                 {/* ── Departments ── */}
@@ -390,6 +420,7 @@ export default function App() {
 
               <ConditionalChatWidget />
               <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+              <CookieConsent />
 
       </BrowserRouter>
     </div>

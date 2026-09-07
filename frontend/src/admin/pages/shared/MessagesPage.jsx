@@ -1,10 +1,11 @@
 // Copyright (c) 2026 Thoth of Codes. Licensed under the MIT License.
 import React, { useState, useEffect, useRef } from 'react';
 import { useChat } from '../../../hooks/useChat';
+import { getSocketAuthToken } from '../../../hooks/useSocket';
 import toast from 'react-hot-toast';
 
 const MessagesPage = () => {
-  const authToken = localStorage.getItem('adminToken') || localStorage.getItem('token');
+  const authToken = getSocketAuthToken() || localStorage.getItem('adminToken');
   
   const [tokenValid, setTokenValid] = useState(!!authToken);
   

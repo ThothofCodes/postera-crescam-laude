@@ -1,82 +1,58 @@
 // Copyright (c) 2026 Thoth of Codes. Licensed under the MIT License.
-let sms = null;
-let whatsapp = null;
+//
+// Free notification system — email only via nodemailer.
+// Replaces Africa's Talking (paid SMS/WhatsApp) with free SMTP email.
+const { sendEmail } = require('./mailer');
 
-try {
-  const AfricasTalking = require('africastalking');
-  if (process.env.AT_API_KEY && process.env.AT_USERNAME) {
-    const at = AfricasTalking({
-      apiKey: process.env.AT_API_KEY,
-      username: process.env.AT_USERNAME,
-    });
-    sms = at.SMS;
-    // WhatsApp is part of the same Africa's Talking account/SDK (see Phase 9
-    // market research, Part 3.3) — gated separately since it requires its
-    // own WhatsApp product activation in the AT dashboard and a registered
-    // sender number, which most accounts won't have configured by default.
-    whatsapp = at.WHATSAPP || at.whatsapp || null;
-  }
-} catch (err) {
-  console.warn('Africa\'s Talking not initialised:', err.message);
-}
+const COMPANY_NAME = 'Postera Crescam Laude';
+const COMPANY_EMAIL = process.env.EMAIL_USER || 'info@pclsolutions.co.ke';
 
+/**
+ * Send an email notification (free — uses SMTP).
+ * @param {string|string[]} to - email address(es)
+ * @param {string} message - plain text body (wrapped in HTML)
+ */
 const sendSMS = async (to, message) => {
-  if (!sms) {
-    console.log(`[SMS stub] To: ${to} | ${message}`);
-    return;
-  }
   try {
     const recipients = Array.isArray(to) ? to : [to];
-    await sms.send({
-      to: recipients,
-      message,
-      from: process.env.AT_SENDER_ID || 'PCL',
+    const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+      <div style="background:#0d1f35;color:#fff;padding:16px;border-radius:6px 6px 0 0;">
+        <h2 style="margin:0;color:#c8973a;">${COMPANY_NAME}</h2>
+      </div>
+      <div style="background:#f4f7fa;padding:20px;border:1px solid #e8f0f8;border-radius:0 0 6px 6px;">
+        <p style="color:#1a2a4a;line-height:1.6;">${message.replace(/\n/g, '<br>')}</p>
+        <hr style="border:none;border-top:1px solid #e8f0f8;margin:16px 0;">
+        <p style="font-size:11px;color:#8a9bac;">This is an automated notification from ${COMPANY_NAME}.<br>Visit: <a href="https://pclsolutions.co.ke">pclsolutions.co.ke</a></p>
+      </div>
+    </div>`;
+
+    await sendEmail({
+      to: recipients.join(','),
+      subject: `[${COMPANY_NAME}] Notification`,
+      html,
     });
   } catch (err) {
-    console.error('SMS error:', err.message);
+    console.error('Notification email error:', err.message);
   }
 };
 
 /**
- * Send a WhatsApp message via Africa's Talking, if the WhatsApp product is
- * enabled on this account (WHATSAPP_SENDER_PHONE_NUMBER_ID configured). Never
- * throws — callers should treat this as best-effort and pair it with SMS for
- * customers without WhatsApp or when the product isn't activated yet.
+ * WhatsApp stub — kept for API compatibility.
+ * Always logs instead of sending (no paid service).
  */
 const sendWhatsApp = async (to, message) => {
-  if (!whatsapp || !process.env.AT_WHATSAPP_SENDER_ID) {
-    console.log(`[WhatsApp stub — product not configured] To: ${to} | ${message}`);
-    return false;
-  }
-  try {
-    await whatsapp.send({
-      senderPhoneNumberId: process.env.AT_WHATSAPP_SENDER_ID,
-      phoneNumber: to,
-      message: { text: { body: message } },
-    });
-    return true;
-  } catch (err) {
-    console.error('WhatsApp error:', err.message);
-    return false;
-  }
+  console.log(`[WhatsApp stub — email used instead] To: ${to} | ${message}`);
+  await sendSMS(to, message);
+  return true;
 };
 
 /**
- * Notify a customer through one or both channels.
- * @param {string} to        - phone number in +254... format
- * @param {string} message   - message body
- * @param {'sms'|'whatsapp'|'both'} channel - default 'sms' (always works without extra setup)
+ * Notify a customer via email (free).
+ * @param {string} to        - email address
+ * @param {string} message   - notification body
+ * @param {'sms'|'whatsapp'|'both'} channel - ignored, always sends email
  */
 const notifyCustomer = async (to, message, channel = 'sms') => {
-  if (channel === 'whatsapp') {
-    const sent = await sendWhatsApp(to, message);
-    if (!sent) await sendSMS(to, message); // fall back so the customer isn't left with nothing
-    return;
-  }
-  if (channel === 'both') {
-    await Promise.all([sendSMS(to, message), sendWhatsApp(to, message)]);
-    return;
-  }
   await sendSMS(to, message);
 };
 

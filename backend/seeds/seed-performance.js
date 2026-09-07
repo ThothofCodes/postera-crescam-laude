@@ -133,8 +133,6 @@ function generateTransactionId(method) {
 
 function generateAddress() {
   const building = randomInt(1, 500);
-  const _floor = randomInt(1, 20);
-  const _room = randomInt(1, 50);
   const street = randomItem(STREETS);
   const city = randomItem(CITIES);
 

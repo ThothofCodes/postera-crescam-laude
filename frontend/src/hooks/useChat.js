@@ -4,12 +4,8 @@ import { io } from 'socket.io-client';
 import { api } from '../utils/api';
 import { v4 as uuidv4 } from 'uuid'; // For unique client IDs
 
-// For socket connections, derive backend URL from current page origin when tunneled
-// (both frontend and backend are served from the same tunnel host)
-const isLocalhost = typeof window !== 'undefined'
-  && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-const SOCKET_URL = import.meta.env.VITE_API_URL
-  || (isLocalhost ? 'http://localhost:5001' : window.location.origin);
+// Always connect through the same origin so Vite/dev-server proxy handles /socket.io
+const SOCKET_URL = import.meta.env.VITE_API_URL || window.location.origin;
 
 export function useChat({ authToken = null } = {}) {
   const socketRef = useRef(null);

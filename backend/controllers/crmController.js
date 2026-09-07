@@ -110,8 +110,9 @@ exports.sendPortalInvite = async (req, res, next) => {
     const otp = genOTP();
     const expiry = new Date(Date.now() + 10 * 60000);
     await CRMClient.findByIdAndUpdate(req.params.id, { portalOTP: otp, portalOTPExpiry: expiry, portalAccess: true });
-    sendSMS(client.phone, `Your Postera Crescam Laude portal access code is: ${otp}. Valid for 10 minutes. Visit: pclsolutions.co.ke/client`);
-    res.json({ message: 'Portal invite sent via SMS' });
+    const notifyTo = client.email || client.phone;
+    if (notifyTo) sendSMS(notifyTo, `Your Postera Crescam Laude portal access code is: ${otp}. Valid for 10 minutes. Visit: pclsolutions.co.ke/client`);
+    res.json({ message: 'Portal invite sent' });
   } catch (err) { next(err); }
 };
 
@@ -121,11 +122,11 @@ exports.bulkSMS = async (req, res, next) => {
     if (!message || message.length > 160) return res.status(400).json({ message: 'Message required (max 160 chars)' });
     const filter = { departmentSlug: req.user.departmentSlug };
     if (segment) filter.segment = segment;
-    const clients = await CRMClient.find(filter).select('phone');
-    const phones = clients.map((c) => c.phone).filter(Boolean);
-    if (!phones.length) return res.status(400).json({ message: 'No clients found for this segment' });
-    sendSMS(phones, message);
-    res.json({ message: `SMS queued for ${phones.length} clients` });
+    const clients = await CRMClient.find(filter).select('phone email');
+    const contacts = clients.map((c) => c.email || c.phone).filter(Boolean);
+    if (!contacts.length) return res.status(400).json({ message: 'No clients found for this segment' });
+    sendSMS(contacts, message);
+    res.json({ message: `Notifications queued for ${contacts.length} clients` });
   } catch (err) { next(err); }
 };
 
@@ -140,11 +141,13 @@ exports.verifyPortalOTP = async (req, res, next) => {
     }
     await CRMClient.findByIdAndUpdate(client._id, { $unset: { portalOTP: 1, portalOTPExpiry: 1 } });
     const jwt = require('jsonwebtoken');
+    // CRM client tokens use a separate secret to prevent cross-role token reuse
+    const CRM_SECRET = process.env.CRM_JWT_SECRET || process.env.JWT_SECRET;
     const token = jwt.sign(
       {
         id: client._id, role: 'CLIENT', clientId: client._id, departmentSlug: client.departmentSlug,
       },
-      process.env.JWT_SECRET,
+      CRM_SECRET,
       { expiresIn: '8h', algorithm: 'HS256' },
     );
     res.json({
@@ -165,7 +168,8 @@ exports.requestOTP = async (req, res, next) => {
     const otp = genOTP();
     const expiry = new Date(Date.now() + 10 * 60000);
     await CRMClient.findByIdAndUpdate(client._id, { portalOTP: otp, portalOTPExpiry: expiry });
-    sendSMS(client.phone, `Your Postera Crescam Laude login code: ${otp}. Valid 10 minutes.`);
+    const notifyTo = client.email || client.phone;
+    if (notifyTo) sendSMS(notifyTo, `Your Postera Crescam Laude login code: ${otp}. Valid 10 minutes.`);
     res.json({ message: 'OTP sent' });
   } catch (err) { next(err); }
 };
@@ -175,7 +179,6 @@ exports.redeemPoints = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { pointsToRedeem, invoiceId } = req.body;
-    const _mongoose = require('mongoose');
     if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: 'Invalid client ID' });
     const pts = Number(pointsToRedeem);
     if (!pts || pts < 100 || pts % 100 !== 0) return res.status(400).json({ message: 'Points must be a multiple of 100 (minimum 100)' });
@@ -206,7 +209,6 @@ exports.redeemPoints = async (req, res, next) => {
 exports.generateReferralCode = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const _mongoose = require('mongoose');
     if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: 'Invalid ID' });
     const client = await CRMClient.findById(id);
     if (!client) return res.status(404).json({ message: 'Client not found' });

@@ -56,8 +56,9 @@ function initSocket(httpServer) {
         const isDev = process.env.NODE_ENV !== 'production';
         if (isDev && /^https?:\/\/localhost(:\d+)?$/.test(origin)) return cb(null, true);
         if (isDev && /^https?:\/\/\d+\.\d+\.\d+\.\d+(:\d+)?$/.test(origin)) return cb(null, true);
-        // Allow tunnel origins (Cloudflare, ngrok, etc.) and any HTTPS origin in dev
-        if (isDev && /^https?:\/\/[\w.-]+(:\d+)?$/.test(origin)) return cb(null, true);
+        // In development, allow known tunnel domains only (not any HTTPS origin)
+        if (isDev && /^https?:\/\/[\w.-]+\.ngrok\.io(:\d+)?$/.test(origin)) return cb(null, true);
+        if (isDev && /^https?:\/\/[\w-]+\.loca\.lt(:\d+)?$/.test(origin)) return cb(null, true);
         const allowed = (process.env.CLIENT_URL || 'http://localhost:3000').split(',').map((o) => o.trim());
         if (allowed.includes(origin)) return cb(null, true);
         console.warn(`[SOCKET] CORS blocked: ${origin}`);

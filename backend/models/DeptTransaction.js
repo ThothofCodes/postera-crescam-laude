@@ -17,5 +17,7 @@ const DeptTransactionSchema = new mongoose.Schema({
 
 DeptTransactionSchema.index({ department: 1, date: -1 });
 DeptTransactionSchema.index({ departmentSlug: 1, type: 1 });
+// Covering index for /finance/breakdown aggregation (type + date filter, group by slug, sum amount)
+DeptTransactionSchema.index({ type: 1, date: -1, departmentSlug: 1, amount: 1 });
 
 module.exports = mongoose.model('DeptTransaction', DeptTransactionSchema);

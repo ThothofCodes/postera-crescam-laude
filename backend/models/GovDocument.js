@@ -6,6 +6,7 @@ const GovDocumentSchema = new mongoose.Schema({
   ticketNumber: { type: String, unique: true },
   clientName: { type: String, required: true },
   clientPhone: { type: String, required: true },
+  clientEmail: { type: String, lowercase: true },
   clientIdNumber: String, // encrypted in production
   documentType: {
     type: String,

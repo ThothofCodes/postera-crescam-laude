@@ -1,5 +1,5 @@
-// Copyright (c) 2026 Thoth of Codes. PDF Receipt Generator — Puppeteer + Cloudinary
-const cloudinary = require('../config/cloudinary');
+// Copyright (c) 2026 Thoth of Codes. PDF Receipt Generator — MinIO storage
+const { uploadBuffer, fileUrl, MINIO_BUCKET } = require('../config/cloudinary');
 
 function receiptHTML(invoice) {
   const items = (invoice.lineItems || []).map((item) => `<tr><td>${item.description}</td><td class="r">${item.qty || 1}</td>
@@ -82,23 +82,12 @@ module.exports = async function generateReceipt(invoice) {
     });
     await browser.close();
 
-    // Upload to Cloudinary
+    // Upload PDF to MinIO
     const year = new Date().getFullYear();
     const dept = invoice.departmentSlug || 'general';
-    const uploadResult = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        {
-          folder: `receipts/${dept}/${year}`,
-          resource_type: 'raw',
-          public_id: `receipt-${invoice.invoiceId || Date.now()}`,
-          format: 'pdf',
-        },
-        (err, result) => (err ? reject(err) : resolve(result)),
-      );
-      const { Readable } = require('stream');
-      Readable.from(pdfBuffer).pipe(stream);
-    });
-    return uploadResult.secure_url;
+    const objectName = `receipts/${dept}/${year}/receipt-${invoice.invoiceId || Date.now()}.pdf`;
+    const result = await uploadBuffer(MINIO_BUCKET, objectName, pdfBuffer, 'application/pdf');
+    return result.url;
   } catch (err) {
     console.error('[generateReceipt] Error:', err.message);
     return null;

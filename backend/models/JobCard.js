@@ -6,6 +6,7 @@ const JobCardSchema = new mongoose.Schema({
   department: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', required: true },
   clientName: { type: String, required: true },
   clientPhone: { type: String, required: true },
+  clientEmail: { type: String, lowercase: true },
   deviceType: { type: String, required: true },
   deviceBrand: String,
   serialNumber: String,

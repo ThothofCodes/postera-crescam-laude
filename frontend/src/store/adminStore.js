@@ -82,9 +82,11 @@ export const useAdminAuth = create(
         } catch (err) {
           if (err.response?.status === 401 && err.response?.data?.code === 'SESSION_KILLED') {
             localStorage.removeItem('adminToken');
+            localStorage.removeItem('pcl-admin-auth');
             set({ sessionKilled: true, user: null, adminToken: null, loading: false });
           } else if (err.response?.status === 401) {
             localStorage.removeItem('adminToken');
+            localStorage.removeItem('pcl-admin-auth');
             set({ user: null, adminToken: null, loading: false });
           } else {
             // Non-auth error (network, etc.) — don't clear token, just stop loading

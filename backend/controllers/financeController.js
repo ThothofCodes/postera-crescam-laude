@@ -111,6 +111,8 @@ exports.createTransaction = async (req, res, next) => {
       departmentSlug: req.body.departmentSlug || deptSlug,
       createdBy: req.user._id,
     });
+    const { invalidateMultiple } = require('../middleware/cache');
+    invalidateMultiple(['finance:breakdown', 'analytics', 'deptAnalytics']).catch(() => {});
     res.status(201).json(tx);
   } catch (err) { next(err); }
 };
@@ -118,6 +120,8 @@ exports.createTransaction = async (req, res, next) => {
 exports.deleteTransaction = async (req, res, next) => {
   try {
     await DeptTransaction.findByIdAndDelete(req.params.id);
+    const { invalidateMultiple } = require('../middleware/cache');
+    invalidateMultiple(['finance:breakdown', 'analytics', 'deptAnalytics']).catch(() => {});
     res.json({ message: 'Deleted' });
   } catch (err) { next(err); }
 };

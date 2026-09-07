@@ -2,6 +2,7 @@
 // PCL — Circuit Canopy Login with boot sequence aesthetic
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import analytics from '../utils/analytics';
 import { useAuth } from '../context/AuthContext';
 import { useAdminAuth } from '../admin/context/AdminAuthContext';
 import PCLLogo from '../components/Logo';
@@ -37,6 +38,7 @@ export default function Login() {
       } else {
         // Regular user login: stores token as 'token'
         await login(form.email, form.password);
+        analytics.login(form.email);
         navigate('/dashboard', { replace: true });
       }
     } catch (err) {

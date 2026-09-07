@@ -23,6 +23,9 @@ const MeetingSchema = new mongoose.Schema({
   startedAt: { type: Date, default: null },
   endedAt: { type: Date, default: null },
   recordingUrl: { type: String, default: null },
+  recordingEgressId: { type: String, default: null },
+  isRecording: { type: Boolean, default: false },
+  calendarEventId: { type: String, default: null }, // Google Calendar event ID
   notes: { type: String, default: '' },
 }, { timestamps: true });
 

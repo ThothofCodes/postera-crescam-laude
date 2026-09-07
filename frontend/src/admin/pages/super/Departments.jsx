@@ -206,7 +206,7 @@ export default function DepartmentsPage() {
       <div style={{ background: 'linear-gradient(160deg,#0F2620,#0F2620)', border: '1px solid rgba(238,97,0,0.12)', borderRadius: 8, padding: '1.25rem' }}>
         <h3 style={{ margin: '0 0 1rem', fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#A9C4BE', fontFamily: "'Rajdhani',sans-serif" }}>◆ Staff Distribution</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
-          {DEPARTMENTS.map((dept) => {
+          {departments.map((dept) => {
             const staff = deptUserCount(dept.slug);
             const pct = totalStaff > 0 ? ((staff / totalStaff) * 100).toFixed(0) : '0';
             return (

@@ -9,11 +9,8 @@ const POLL_INTERVAL = 3000;
 const MAX_POLL_ATTEMPTS = 30; // 90 seconds fallback
 const MAX_RETRIES = 3;
 
-// Determine socket URL (tunnel-aware)
-const isLocalhost = typeof window !== 'undefined'
-  && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-const SOCKET_URL = import.meta.env.VITE_API_URL
-  || (isLocalhost ? 'http://localhost:5001' : window.location.origin);
+// Always connect through the same origin so Vite/dev-server proxy handles /socket.io
+const SOCKET_URL = import.meta.env.VITE_API_URL || window.location.origin;
 
 export default function PaymentForm({ orderId, amount, onSuccess }) {
   const [status, setStatus] = useState('idle'); // idle | pushing | polling | success | failed | switching-cash
@@ -141,26 +138,31 @@ export default function PaymentForm({ orderId, amount, onSuccess }) {
     pollRef.current = setTimeout(() => poll(orderNumber, attempts + 1), POLL_INTERVAL);
   }, [onSuccess]);
 
-  // Start payment — connect socket + fallback to polling
+  // Start payment — send STK push, then connect socket + fallback to polling
   const handlePay = useCallback(async () => {
     setStatus('pushing');
     setError('');
     setPollAttempts(0);
 
     try {
-      // Fetch order to get checkoutRequestId
-      const { data: orderData } = await publicApi.get(`/orders/status/${orderId}`);
-      const checkoutRequestId = orderData.checkoutRequestId || orderId;
+      // Explicitly send the STK push to Safaricom
+      const { data: stkResult } = await publicApi.post(`/orders/pay/${orderId}`);
+      const checkoutRequestId = stkResult.checkoutRequestId;
+
+      if (!checkoutRequestId) {
+        throw new Error('STK push did not return a checkout request ID');
+      }
 
       // Try socket first
       connectPaymentSocket(checkoutRequestId);
 
       // Also start polling as fallback (socket might not connect)
       setStatus('polling');
-      poll(orderId);
-    } catch {
-      setStatus('polling');
-      poll(orderId);
+      poll(stkResult.orderNumber || orderId);
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Failed to send M-Pesa prompt';
+      setStatus('failed');
+      setError(msg);
     }
   }, [orderId, connectPaymentSocket, poll]);
 

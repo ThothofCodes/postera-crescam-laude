@@ -1,15 +1,6 @@
 // Copyright (c) 2026 Thoth of Codes. Licensed under the MIT License.
-// eslint-disable-next-line import/no-unresolved
-const cloudinary = require('cloudinary').v2;
-const { v4: uuidv4 } = require('uuid');
+const { uploadProductImages } = require('../middleware/upload');
 const Inventory = require('../models/Inventory');
-
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
 
 const inventoryController = {
   // Get all inventory items
@@ -85,19 +76,13 @@ const inventoryController = {
       // Handle file uploads if any
       const attachmentUrls = [];
       if (req.files && req.files.length > 0) {
-        // Upload each file to Cloudinary
-        for (const file of req.files) {
-          const result = await cloudinary.uploader.upload(file.path, {
-            folder: 'inventory_attachments',
-            public_id: `${uuidv4()}_${file.originalname.split('.')[0]}`,
-          });
-          attachmentUrls.push(result.secure_url);
-        }
+        const urls = await uploadProductImages(req.files, 'inventory');
+        attachmentUrls.push(...urls);
       }
 
       const newItem = new Inventory({
         ...req.body,
-        attachments: attachmentUrls, // Add the uploaded file URLs
+        attachments: attachmentUrls,
       });
 
       await newItem.save();
@@ -131,14 +116,8 @@ const inventoryController = {
       const updatedAttachmentUrls = [...(existingItem.attachments || [])]; // Keep existing attachments
 
       if (req.files && req.files.length > 0) {
-        // Upload each new file to Cloudinary
-        for (const file of req.files) {
-          const result = await cloudinary.uploader.upload(file.path, {
-            folder: 'inventory_attachments',
-            public_id: `${uuidv4()}_${file.originalname.split('.')[0]}`,
-          });
-          updatedAttachmentUrls.push(result.secure_url);
-        }
+        const urls = await uploadProductImages(req.files, 'inventory');
+        updatedAttachmentUrls.push(...urls);
       }
 
       const updatedItem = await Inventory.findByIdAndUpdate(

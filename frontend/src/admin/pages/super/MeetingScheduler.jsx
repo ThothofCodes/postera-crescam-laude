@@ -2,8 +2,10 @@
 // Meeting Scheduler — Create, manage, and join LiveKit video meetings
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import analytics from '../../../utils/analytics';
+
 import LiveKitMeeting from '../../components/LiveKitMeeting';
+import ShareMeetingModal from '../../components/ShareMeetingModal';
 
 const COLORS = {
   primary: '#FF6B00',
@@ -19,15 +21,16 @@ const COLORS = {
 };
 
 const api = {
-  get: (url) => fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }).then((r) => r.json()),
+  get: (url) => fetch(url, { credentials: 'include' }).then((r) => r.json()),
   post: (url, data) => fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   }).then((r) => r.json()),
   delete: (url) => fetch(url, {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    credentials: 'include',
   }).then((r) => r.json()),
 };
 
@@ -71,6 +74,7 @@ function CreateMeetingModal({ open, onClose, onCreated }) {
         scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).toISOString() : null,
       });
       if (result.room) {
+        analytics.meetingCreated(form.title, form.participants?.length || 0);
         onCreated(result);
         setForm({ title: '', description: '', scheduledAt: '', duration: 60, department: '', isRecurring: false });
       }
@@ -245,8 +249,92 @@ function CreateMeetingModal({ open, onClose, onCreated }) {
   );
 }
 
+/* ── Meeting Recording Modal ── */
+function RecordingModal({ open, onClose, room }) {
+  if (!open || !room || !room.recordingUrl) return null;
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 1000, backdropFilter: 'blur(4px)',
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: COLORS.surface, borderRadius: 16, width: 800, maxWidth: '90vw',
+          maxHeight: '85vh', overflow: 'auto',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.5)', border: `1px solid ${COLORS.primary}30`,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '20px 24px', borderBottom: `1px solid ${COLORS.primary}20`,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 10,
+              background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.accent})`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
+            }}>
+              🎬
+            </div>
+            <div>
+              <h3 style={{ margin: 0, color: COLORS.text, fontSize: 18 }}>{room.title}</h3>
+              <p style={{ margin: 0, color: COLORS.muted, fontSize: 12 }}>Meeting Recording</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            background: 'none', border: 'none', color: COLORS.muted,
+            cursor: 'pointer', fontSize: 22,
+          }}>
+            ×
+          </button>
+        </div>
+        <div style={{ padding: 24 }}>
+          <video
+            controls
+            autoPlay
+            style={{
+              width: '100%', borderRadius: 10, background: '#000',
+              maxHeight: '60vh',
+            }}
+          >
+            <source src={room.recordingUrl} />
+            Your browser does not support video playback.
+          </video>
+          <div style={{
+            marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
+            <div style={{ fontSize: 13, color: COLORS.muted }}>
+              🎬 Recording • {room.title}
+            </div>
+            <a
+              href={room.recordingUrl}
+              download
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                background: `${COLORS.accent}20`, color: COLORS.accent,
+                border: `1px solid ${COLORS.accent}40`,
+                borderRadius: 8, padding: '8px 16px', cursor: 'pointer',
+                fontSize: 13, fontWeight: 600, textDecoration: 'none',
+              }}
+            >
+              ⬇ Download
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Meeting Card ── */
-function MeetingCard({ room, onJoin, onEnd, onDelete }) {
+function MeetingCard({ room, onJoin, onEnd, onDelete, onShare, onPlayRecording, onSyncCalendar }) {
   const scheduledDate = room.scheduledAt ? new Date(room.scheduledAt) : null;
   const isUpcoming = scheduledDate && scheduledDate > new Date() && room.status === 'SCHEDULED';
   const isActive = room.status === 'ACTIVE';
@@ -277,6 +365,15 @@ function MeetingCard({ room, onJoin, onEnd, onDelete }) {
           })}</span>
         )}
         <span>👥 {room.participants?.length || 0} invited</span>
+        {room.scheduledAt && (
+          <span style={{ color: COLORS.accent, fontWeight: 600 }}>📆 Calendar</span>
+        )}
+        {room.recordingUrl && (
+          <span style={{ color: '#EF4444', fontWeight: 600 }}>🎬 Has Recording</span>
+        )}
+        {room.isRecording && (
+          <span style={{ color: '#EF4444', fontWeight: 600 }}>⏺ Recording…</span>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 8 }}>
@@ -315,6 +412,40 @@ function MeetingCard({ room, onJoin, onEnd, onDelete }) {
             🗑 Delete
           </button>
         )}
+        {room.recordingUrl && onPlayRecording && (
+          <button
+            onClick={() => onPlayRecording(room)}
+            style={{
+              background: '#EF444420', color: '#EF4444',
+              border: '1px solid #EF444440',
+              borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            🎬 Watch Recording
+          </button>
+        )}
+        {room.scheduledAt && (
+          <button
+            onClick={() => onSyncCalendar(room)}
+            style={{
+              background: '#4285F420', color: '#4285F4',
+              border: '1px solid #4285F440',
+              borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: 13,
+            }}
+          >
+            📆 Add to Calendar
+          </button>
+        )}
+        <button
+          onClick={() => onShare(room)}
+          style={{
+            background: `${COLORS.accent}20`, color: COLORS.accent, border: `1px solid ${COLORS.accent}40`,
+            borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: 13,
+          }}
+        >
+          🔗 Share
+        </button>
       </div>
     </div>
   );
@@ -322,7 +453,6 @@ function MeetingCard({ room, onJoin, onEnd, onDelete }) {
 
 /* ── Main Page ─────────────────────────────────────────────────────── */
 export default function MeetingScheduler() {
-  const navigate = useNavigate();
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -331,6 +461,9 @@ export default function MeetingScheduler() {
   const [meetingToken, setMeetingToken] = useState(null);
   const [wsUrl, setWsUrl] = useState(null);
   const [meetingInfo, setMeetingInfo] = useState(null);
+  const [shareRoom, setShareRoom] = useState(null);
+  const [recordingRoom, setRecordingRoom] = useState(null);
+  const calendarConfigured = true; // ICS calendar always available
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   const fetchRooms = useCallback(async () => {
@@ -351,6 +484,7 @@ export default function MeetingScheduler() {
     try {
       const data = await api.post(`/api/meetings/rooms/${room._id}/join`);
       if (data.token) {
+        analytics.meetingJoined(room._id);
         setMeetingToken(data.token);
         setWsUrl(data.wsUrl);
         setActiveMeeting(room._id);
@@ -383,6 +517,19 @@ export default function MeetingScheduler() {
       handleJoin(result.room);
     }
   };
+
+  const handleSyncCalendar = async (room) => {
+    try {
+      const data = await api.post(`/api/meetings/rooms/${room._id}/sync-calendar`);
+      if (data.icsUrl) {
+        // Download the ICS file
+        window.open(`/api/meetings/rooms/${room._id}/calendar.ics`, '_blank');
+      }
+    } catch (err) {
+      console.error('Calendar file generation failed:', err);
+    }
+  };
+
 
   // If in a meeting, show the video room
   if (activeMeeting && meetingToken && wsUrl && meetingInfo) {
@@ -457,6 +604,17 @@ export default function MeetingScheduler() {
         </button>
       </div>
 
+      {/* Calendar Status Banner */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        background: `${COLORS.success}10`, border: `1px solid ${COLORS.success}30`,
+        borderRadius: 10, padding: '10px 16px', marginBottom: 20, fontSize: 13,
+        color: COLORS.success,
+      }}>
+        <span>📆</span>
+        <span>Calendar integration active — download .ics files for scheduled meetings</span>
+      </div>
+
       {/* Tabs */}
       <div style={{
         display: 'flex', gap: 4, marginBottom: 24,
@@ -515,6 +673,9 @@ export default function MeetingScheduler() {
               onJoin={handleJoin}
               onEnd={handleEnd}
               onDelete={handleDelete}
+              onShare={() => setShareRoom(room)}
+              onPlayRecording={(r) => setRecordingRoom(r)}
+              onSyncCalendar={handleSyncCalendar}
             />
           ))}
         </div>
@@ -524,6 +685,18 @@ export default function MeetingScheduler() {
         open={showCreate}
         onClose={() => setShowCreate(false)}
         onCreated={handleCreated}
+      />
+
+      <ShareMeetingModal
+        open={!!shareRoom}
+        onClose={() => setShareRoom(null)}
+        room={shareRoom}
+      />
+
+      <RecordingModal
+        open={!!recordingRoom}
+        onClose={() => setRecordingRoom(null)}
+        room={recordingRoom}
       />
     </div>
   );

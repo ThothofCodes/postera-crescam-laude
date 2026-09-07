@@ -7,6 +7,9 @@ const { runBISnapshot } = require('./biSnapshot');
 const { runInventoryAlerts } = require('./inventoryAlerts');
 const { runPSAutoClose } = require('./psAutoClose');
 const { runScheduledPublish } = require('./scheduledPublish');
+const { runMeetingStartNotify } = require('./meetingStartNotify');
+const { runMeetingAutoActivate } = require('./meetingAutoActivate');
+const { runSessionCleanup } = require('./sessionCleanup');
 
 module.exports = function startCronJobs() {
   // Internet/cyber/webdev renewal invoices — 03:00 EAT daily
@@ -23,6 +26,12 @@ module.exports = function startCronJobs() {
   cron.schedule('* * * * *', runPSAutoClose, { timezone: 'Africa/Nairobi' });
   // Tech Hub — auto-publish scheduled articles, every minute
   cron.schedule('* * * * *', runScheduledPublish, { timezone: 'Africa/Nairobi' });
+  // Meeting start alerts — notify participants 5 min before scheduled start
+  cron.schedule('* * * * *', runMeetingStartNotify, { timezone: 'Africa/Nairobi' });
+  // Meeting auto-activate — transition SCHEDULED → ACTIVE when time arrives
+  cron.schedule('* * * * *', runMeetingAutoActivate, { timezone: 'Africa/Nairobi' });
+  // Session cleanup — remove expired and idle sessions every 15 minutes
+  cron.schedule('*/15 * * * *', runSessionCleanup, { timezone: 'Africa/Nairobi' });
 
   console.log('✅ Cron jobs scheduled (EAT timezone):');
   console.log('   03:00 — Billing renewals');
@@ -32,4 +41,7 @@ module.exports = function startCronJobs() {
   console.log('   06:00 — Inventory alerts');
   console.log('   */1m  — PS Arena auto-close');
   console.log('   */1m  — Scheduled article publish');
+  console.log('   */1m  — Meeting start notifications');
+  console.log('   */1m  — Meeting auto-activate');
+  console.log('   */15m — Session cleanup');
 };

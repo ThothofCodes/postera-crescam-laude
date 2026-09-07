@@ -8,6 +8,7 @@ const { sendSMS } = require('../config/africastalking');
 const { sendEmail } = require('../config/mailer');
 const DeptTransaction = require('../models/DeptTransaction');
 const { emitPaymentResult } = require('../socket');
+const logger = require('../utils/logger');
 
 const sanitizeRef = (r) => (r ? String(r).replace(/[^A-Z0-9]/gi, '').slice(0, 20) : undefined);
 
@@ -18,7 +19,7 @@ exports.mpesaCallback = async (req, res) => {
   try {
     // Validate callback structure before processing
     if (!req.body?.Body?.stkCallback) {
-      console.warn('[MPESA] Callback: invalid body structure');
+      logger.warn('[MPESA] Callback: invalid body structure');
       return;
     }
 
@@ -26,32 +27,32 @@ exports.mpesaCallback = async (req, res) => {
 
     // Validate checkoutRequestId format
     if (!checkoutRequestId || checkoutRequestId.length < 5 || checkoutRequestId.length > 100) {
-      console.warn(`[MPESA] Callback: invalid checkoutRequestId length (${checkoutRequestId?.length})`);
+      logger.warn(`[MPESA] Callback: invalid checkoutRequestId length (${checkoutRequestId?.length})`);
       return;
     }
 
     // ── Replay protection ──────────────────────────────────────
     if (isCallbackProcessed(checkoutRequestId)) {
-      console.warn(`[MPESA] Callback replay blocked: ${checkoutRequestId}`);
+      logger.warn(`[MPESA] Callback replay blocked: ${checkoutRequestId}`);
       return;
     }
     markCallbackProcessed(checkoutRequestId);
 
     // ── Log callback for audit trail ───────────────────────────
     const sourceIP = req.mpesaSourceInfo?.clientIP || 'unknown';
-    console.log(`[MPESA] Callback received: id=${checkoutRequestId} code=${resultCode} ip=${sourceIP} safaricom=${req.mpesaSourceInfo?.isFromSafaricom}`);
+    logger.info(`[MPESA] Callback received: id=${checkoutRequestId} code=${resultCode} ip=${sourceIP} safaricom=${req.mpesaSourceInfo?.isFromSafaricom}`);
 
     const order = await Order.findOne({ checkoutRequestId });
     const consultation = !order ? await Consultation.findOne({ checkoutRequestId }).populate('client') : null;
     const record = order || consultation;
     if (!record) {
-      console.warn(`[MPESA] Callback: no order/consultation found for ${checkoutRequestId}`);
+      logger.warn(`[MPESA] Callback: no order/consultation found for ${checkoutRequestId}`);
       return;
     }
 
     // Prevent replay — only process if still unpaid
     if (record.paymentStatus === 'paid') {
-      console.warn(`[MPESA] Callback: already paid ${checkoutRequestId}`);
+      logger.warn(`[MPESA] Callback: already paid ${checkoutRequestId}`);
       return;
     }
 
@@ -82,21 +83,16 @@ exports.mpesaCallback = async (req, res) => {
         });
       } catch { /* DeptTransaction recording is non-critical */ }
 
-      // Deduct stock for physical products
+      // Deduct stock for physical products (bulk update for atomicity)
       if (isOrder && order.items?.length) {
-        for (const item of order.items) {
-          if (!item.product) continue;
-          const p = await Product.findById(item.product);
-          if (p && !p.isDigital) {
-            await Product.findByIdAndUpdate(item.product, {
-              $inc: { soldCount: item.quantity, stock: -item.quantity },
-            });
-          } else if (p) {
-            await Product.findByIdAndUpdate(item.product, {
-              $inc: { soldCount: item.quantity },
-            });
-          }
-        }
+        const stockUpdates = order.items
+          .filter((item) => item.product)
+          .map((item) => Product.findByIdAndUpdate(
+            item.product,
+            { $inc: { soldCount: item.quantity, stock: -item.quantity } },
+            { runValidators: true },
+          ));
+        await Promise.all(stockUpdates);
       }
 
       // Emit real-time payment status via Socket.io
@@ -109,7 +105,8 @@ exports.mpesaCallback = async (req, res) => {
       });
 
       if (isOrder) {
-        sendSMS(order.customer.phone, `Payment of KES ${order.total} confirmed. Ref: ${mpesaRef}. Order: ${order.orderNumber}`);
+        const notifyTo = order.customer.email || order.customer.phone;
+        if (notifyTo) sendSMS(notifyTo, `Payment of KES ${order.total} confirmed. Ref: ${mpesaRef}. Order: ${order.orderNumber}`);
         // Send email receipt if customer email is available
         if (order.customer.email) {
           sendEmail({
@@ -135,11 +132,12 @@ exports.mpesaCallback = async (req, res) => {
             `,
           }).catch(() => {});
         }
-      } else if (consultation?.client?.phone) {
-        sendSMS(consultation.client.phone, `Consultation payment of KES ${consultation.fee} confirmed. Ref: ${mpesaRef}.`);
+      } else if (consultation?.client?.email || consultation?.client?.phone) {
+        const notifyTo = consultation.client.email || consultation.client.phone;
+        if (notifyTo) sendSMS(notifyTo, `Consultation payment of KES ${consultation.fee} confirmed. Ref: ${mpesaRef}.`);
       }
     } else {
-      console.log(`M-Pesa callback: payment failed for ${checkoutRequestId} — ResultCode: ${resultCode}`);
+      logger.info(`M-Pesa callback: payment failed for ${checkoutRequestId} — ResultCode: ${resultCode}`);
       // Emit failure so frontend can show retry options immediately
       emitPaymentResult(checkoutRequestId, {
         success: false,
@@ -152,8 +150,9 @@ exports.mpesaCallback = async (req, res) => {
       const failedEmail = order?.customer?.email;
       const failedName = order?.customer?.name || 'Customer';
       const failedAmount = order?.total || consultation?.fee || 0;
-      if (failedPhone) {
-        sendSMS(failedPhone, `Payment of KES ${failedAmount} could not be completed. Please retry or contact us for assistance.`);
+      const failedNotifyTo = failedEmail || failedPhone;
+      if (failedNotifyTo) {
+        sendSMS(failedNotifyTo, `Payment of KES ${failedAmount} could not be completed. Please retry or contact us for assistance.`);
       }
       if (failedEmail) {
         sendEmail({
@@ -182,6 +181,6 @@ exports.mpesaCallback = async (req, res) => {
       }
     }
   } catch (err) {
-    console.error('M-Pesa callback processing error:', err.message);
+    logger.error('M-Pesa callback processing error', { message: err.message });
   }
 };

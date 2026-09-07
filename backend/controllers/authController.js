@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const RegisteredDevice = require('../models/RegisteredDevice');
 const ActiveSession = require('../models/ActiveSession');
+const { recordFailure, recordSuccess } = require('../middleware/bruteForce');
 
 // Sign token — algorithm explicitly pinned to HS256, includes jti for session tracking
 const signToken = (user, jti) => jwt.sign(
@@ -28,6 +29,35 @@ const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 // SHA256 hash for device fingerprints
 const hashFingerprint = (fp) => crypto.createHash('sha256').update(fp).digest('hex');
+
+// ── Cookie configuration ────────────────────────────────────────────────────
+const isProduction = process.env.NODE_ENV === 'production';
+
+const JWT_COOKIE_OPTIONS = {
+  httpOnly: true,        // Not accessible via JavaScript (XSS prevention)
+  secure: isProduction,  // HTTPS only in production
+  sameSite: 'lax',       // CSRF protection — sent on top-level navigations
+  path: '/',
+  maxAge: 8 * 60 * 60 * 1000, // 8 hours (matches JWT_EXPIRE)
+};
+
+const JWT_COOKIE_NAME = 'pcl_token';
+
+/**
+ * Set JWT in httpOnly cookie on the response.
+ * Also returns the token in the JSON body for backward compatibility
+ * with API clients (mobile apps, Postman, etc.).
+ */
+function setJwtCookie(res, token) {
+  res.cookie(JWT_COOKIE_NAME, token, JWT_COOKIE_OPTIONS);
+}
+
+/**
+ * Clear JWT cookie on logout/session expiry.
+ */
+function clearJwtCookie(res) {
+  res.clearCookie(JWT_COOKIE_NAME, { path: '/' });
+}
 
 exports.verifyToken = async (req, res, next) => {
   try {
@@ -110,9 +140,7 @@ exports.setPassword = async (req, res, next) => {
         role: user.role,
       },
     });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
 exports.register = async (req, res, next) => {
@@ -145,8 +173,12 @@ exports.register = async (req, res, next) => {
       isOwner,
     });
 
+    const jti = crypto.randomUUID();
+    const token = signToken(user, jti);
+    setJwtCookie(res, token);
+
     res.status(201).json({
-      token: signToken(user, crypto.randomUUID()),
+      token, // Also in body for API clients
       user: {
         id: user._id, name: user.name, email: user.email, role: user.role, departmentSlug: user.departmentSlug,
       },
@@ -179,6 +211,9 @@ exports.login = async (req, res, next) => {
       : await require('bcryptjs').compare(password, dummyHash);
 
     if (!user || !passwordMatch) {
+      // Record failed attempt for brute-force protection
+      const ip = req._bruteForceIp || req.ip || 'unknown';
+      recordFailure(ip);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
@@ -275,8 +310,17 @@ exports.login = async (req, res, next) => {
       });
 
       user.lastLogin = new Date();
-      await user.save({ validateBeforeSave: false }); return res.json({
-        token: signToken(user, jti),
+      await user.save({ validateBeforeSave: false });
+
+      // Reset brute-force counter on successful login
+      const successIp = req._bruteForceIp || req.ip || 'unknown';
+      recordSuccess(successIp);
+
+      const token = signToken(user, jti);
+      setJwtCookie(res, token);
+
+      return res.json({
+        token, // Also in body for backward compat
         user: {
           id: user._id,
           name: user.name,
@@ -309,8 +353,13 @@ exports.login = async (req, res, next) => {
     });
 
     user.lastLogin = new Date();
-    await user.save({ validateBeforeSave: false }); res.json({
-      token: signToken(user, jti),
+    await user.save({ validateBeforeSave: false });
+
+    const token = signToken(user, jti);
+    setJwtCookie(res, token);
+
+    res.json({
+      token, // Also in body for backward compat
       user: {
         id: user._id,
         name: user.name,
@@ -322,6 +371,29 @@ exports.login = async (req, res, next) => {
       },
       mustChangePassword: user.mustChangePassword || false,
     });
+  } catch (err) { next(err); }
+};
+
+// ── Logout ──────────────────────────────────────────────────────────────
+exports.logout = async (req, res, next) => {
+  try {
+    // Clear JWT cookie
+    clearJwtCookie(res);
+
+    // Kill active session if jti is available
+    const token = req.headers.authorization?.startsWith('Bearer ')
+      ? req.headers.authorization.split(' ')[1]
+      : null;
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+        if (decoded.jti) {
+          await ActiveSession.deleteOne({ jti: decoded.jti });
+        }
+      } catch { /* token may be expired — that's fine */ }
+    }
+
+    res.json({ message: 'Logged out successfully' });
   } catch (err) { next(err); }
 };
 
@@ -366,10 +438,8 @@ exports.changeFirstPassword = async (req, res, next) => {
 
 exports.getMe = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user._id)
-      .populate('department', 'name slug logoUrl')
-      .select('-password');
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    // protect middleware already fetched and populated the user — no duplicate query needed
+    const { password, ...user } = req.user.toObject();
     res.json(user);
   } catch (err) { next(err); }
 };

@@ -4,7 +4,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   LiveKitRoom,
-  VideoConference,
   Chat,
   ControlBar,
   LayoutContext,
@@ -139,7 +138,7 @@ function BrandedGrid() {
 }
 
 /* ── Meeting Header ── */
-function MeetingHeader({ title, description, participantCount, onEnd, isHost }) {
+function MeetingHeader({ title, description, participantCount, isRecording, onEnd, isHost }) {
   const [time, setTime] = useState(0);
   useEffect(() => {
     const iv = setInterval(() => setTime((t) => t + 1), 1000);
@@ -183,6 +182,21 @@ function MeetingHeader({ title, description, participantCount, onEnd, isHost }) 
           <span style={{ color: COLORS.success, fontSize: 8 }}>●</span>
           {participantCount} participant{participantCount !== 1 ? 's' : ''}
         </div>
+        {isRecording && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            background: '#EF444420', border: '1px solid #EF444440',
+            borderRadius: 20, padding: '4px 12px',
+            fontSize: 12, color: '#EF4444', fontWeight: 700,
+          }}>
+            <span style={{
+              width: 7, height: 7, borderRadius: '50%',
+              background: '#EF4444', display: 'inline-block',
+              animation: 'blink 1s ease-in-out infinite',
+            }} />
+            REC
+          </div>
+        )}
         <div style={{
           fontFamily: 'monospace', color: COLORS.accent,
           background: COLORS.bg, borderRadius: 8, padding: '4px 10px',
@@ -247,7 +261,29 @@ function NotConfigured() {
 export default function LiveKitMeeting({ room, token, wsUrl, userName, userRole }) {
   const [chatOpen, setChatOpen] = useState(false);
   const [participantCount, setParticipantCount] = useState(1);
+  const [isRecording, setIsRecording] = useState(room.isRecording || false);
+  const [recordingLoading, setRecordingLoading] = useState(false);
   const isHost = userRole === 'SUPER_ADMIN';
+
+  const toggleRecording = async () => {
+    setRecordingLoading(true);
+    try {
+      const endpoint = isRecording ? 'stop-recording' : 'start-recording';
+      const res = await fetch(`/api/meetings/rooms/${room._id}/${endpoint}`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setIsRecording(!isRecording);
+      } else {
+        console.error('Recording error:', data.message);
+      }
+    } catch (err) {
+      console.error('Recording toggle failed:', err);
+    }
+    setRecordingLoading(false);
+  };
 
   const onParticipantUpdate = useCallback((event) => {
     setParticipantCount(event.participants.length);
@@ -257,6 +293,7 @@ export default function LiveKitMeeting({ room, token, wsUrl, userName, userRole 
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: COLORS.bg }}>
+      <style>{`@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }`}</style>
       <LiveKitRoom
         serverUrl={wsUrl}
         token={token}
@@ -271,10 +308,11 @@ export default function LiveKitMeeting({ room, token, wsUrl, userName, userRole 
           title={room.title}
           description={room.description}
           participantCount={participantCount}
+          isRecording={isRecording}
           onEnd={() => {
             fetch(`/api/meetings/rooms/${room._id}/end`, {
               method: 'POST',
-              headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+              credentials: 'include',
             });
             window.close();
           }}
@@ -317,12 +355,50 @@ export default function LiveKitMeeting({ room, token, wsUrl, userName, userRole 
           padding: '8px 16px',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ flex: 1 }} />
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+              {isRecording && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  background: '#EF444420', border: '1px solid #EF444440',
+                  borderRadius: 8, padding: '6px 12px', fontSize: 13, fontWeight: 600,
+                  color: '#EF4444',
+                }}>
+                  <span style={{
+                    width: 8, height: 8, borderRadius: '50%',
+                    background: '#EF4444', display: 'inline-block',
+                    animation: 'blink 1s ease-in-out infinite',
+                  }} />
+                  REC
+                </div>
+              )}
+            </div>
             <ControlBar
               style={{ background: 'transparent' }}
               controls={{ screenShare: true, chat: false }}
             />
-            <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
+              {isHost && (
+                <button
+                  onClick={toggleRecording}
+                  disabled={recordingLoading}
+                  style={{
+                    background: isRecording ? '#EF4444' : COLORS.surfaceHover,
+                    color: COLORS.text,
+                    border: `1px solid ${isRecording ? '#EF4444' : '#4B5563'}`,
+                    borderRadius: 8,
+                    padding: '8px 14px',
+                    cursor: recordingLoading ? 'not-allowed' : 'pointer',
+                    fontSize: 14,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontWeight: 600,
+                    opacity: recordingLoading ? 0.6 : 1,
+                  }}
+                >
+                  {isRecording ? '⏹ Stop Rec' : '⏺ Record'}
+                </button>
+              )}
               <button
                 onClick={() => setChatOpen(!chatOpen)}
                 style={{

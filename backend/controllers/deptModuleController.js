@@ -59,7 +59,8 @@ exports.updateJobCard = async (req, res, next) => {
     // transition now does, using whichever channel the job card's
     // notifyChannel field requests (defaults to SMS, which always works).
     if (req.body.status && req.body.status !== previousStatus && JOBCARD_STAGE_MESSAGES[req.body.status]) {
-      notifyCustomer(job.clientPhone, JOBCARD_STAGE_MESSAGES[req.body.status](job), job.notifyChannel || 'sms');
+      const notifyTo = job.clientEmail || job.clientPhone;
+      if (notifyTo) notifyCustomer(notifyTo, JOBCARD_STAGE_MESSAGES[req.body.status](job), job.notifyChannel || 'sms');
     }
     try {
       const { emitDeptNotification, getIO } = require('../socket');
@@ -197,7 +198,8 @@ exports.updateGovDoc = async (req, res, next) => {
     const doc = await GovDocument.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!doc) return res.status(404).json({ message: 'Document not found' });
     if (req.body.status === 'completed') {
-      sendSMS(doc.clientPhone, `Your document request (${doc.ticketNumber}) is ready for collection at Postera Crescam Laude.`);
+      const notifyTo = doc.clientEmail || doc.clientPhone;
+      if (notifyTo) sendSMS(notifyTo, `Your document request (${doc.ticketNumber}) is ready for collection at Postera Crescam Laude.`);
     }
     res.json(doc);
   } catch (err) { next(err); }

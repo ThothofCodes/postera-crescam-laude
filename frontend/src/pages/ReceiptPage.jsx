@@ -31,30 +31,13 @@ export default function ReceiptPage() {
     const fetchOrder = async () => {
       setLoading(true);
       try {
-        const { data } = await api.get(`/orders/my/phone`);
-        // If the endpoint requires phone, try by order number
-        // For now, search through recent orders
-        const allOrders = await api.get('/orders');
-        const found = allOrders.data?.find?.((o) => o.orderNumber === orderNumber) || allOrders.data?.orders?.find?.((o) => o.orderNumber === orderNumber);
-        if (found) {
-          setOrder(found);
-        } else {
-          setError('Order not found. Please check your order number.');
-        }
+        // Use the public receipt endpoint
+        const res = await fetch(`/api/orders/receipt/${orderNumber}`);
+        if (!res.ok) throw new Error('not found');
+        const data = await res.json();
+        setOrder(data);
       } catch {
-        // Fallback: try direct fetch (public endpoint might work differently)
-        try {
-          const res = await fetch(`${api.defaults?.baseURL || '/api'}/orders?search=${orderNumber}`);
-          const data = await res.json();
-          const found = data?.find?.((o) => o.orderNumber === orderNumber) || data?.orders?.find?.((o) => o.orderNumber === orderNumber);
-          if (found) {
-            setOrder(found);
-          } else {
-            setError('Order not found. Please check your order number.');
-          }
-        } catch {
-          setError('Unable to load order. Please try again later.');
-        }
+        setError('Order not found. Please check your order number.');
       }
       setLoading(false);
     };
@@ -70,7 +53,7 @@ export default function ReceiptPage() {
     try {
       const baseUrl = api.defaults?.baseURL || '/api';
       const url = `${baseUrl}/orders/receipt/${orderNumber}`;
-      const response = await fetch(url);
+      const response = await fetch(url, { credentials: 'include' });
       if (!response.ok) throw new Error('Failed to download');
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -146,6 +129,7 @@ export default function ReceiptPage() {
         }}>
           {/* ── Header ── */}
           <div style={{ textAlign: 'center', borderBottom: '3px solid #EE6100', paddingBottom: '1rem', marginBottom: '1.25rem' }}>
+            <img src="/postera-mark.png" alt="PCL Logo" style={{ width: 60, height: 60, margin: '0 auto 8px', display: 'block', objectFit: 'contain' }} />
             <div style={{ fontFamily: "'Rajdhani',sans-serif", fontWeight: 700, fontSize: 22, color: '#244A44', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{STORE.name}</div>
             <div style={{ fontFamily: "'Share Tech Mono',monospace", fontSize: 9, color: '#6A8A82', letterSpacing: '0.08em', marginTop: 2 }}>{STORE.tagline}</div>
             <div style={{ fontFamily: "'Share Tech Mono',monospace", fontSize: 9, color: '#6A8A82', marginTop: 4 }}>{STORE.address}</div>
@@ -339,6 +323,7 @@ export default function ReceiptPage() {
           body { background: #fff !important; }
           div[style*="background: rgb(8, 25, 22)"] { background: #fff !important; }
           div[style*="boxShadow"] { box-shadow: none !important; }
+          img[alt="PCL Logo"] { display: block !important; margin: 0 auto 8px !important; width: 60px !important; height: 60px !important; }
         }
       `}</style>
     </div>

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, publicApi } from '../utils/api';
+import { useAuthStore } from '../store/authStore';
 
 const HelpDesk = () => {
   const navigate = useNavigate();
@@ -49,8 +50,8 @@ const HelpDesk = () => {
         }
         
         // Fetch user tickets if authenticated
-        const token = localStorage.getItem('token');
-        if (token) {
+        const user = useAuthStore.getState().user;
+        if (user) {
           try {
             const ticketsResponse = await api.get('/help/tickets');
             if (ticketsResponse.data.success) {

@@ -1,0 +1,212 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { sanityClient, sanityReady } from '../../lib/sanity';
+
+const page = parseInt(Astro.url.searchParams.get('page') || '1');
+const limit = 20;
+const start = (page - 1) * limit;
+
+let news: any[] = [];
+let total = 0;
+
+if (sanityReady) {
+  const data = await sanityClient.fetch(`{
+    "news": *[_type == "news"] | order(publishedAt desc) [${start}...${start + limit}] {
+      _id, title, slug, summary, source, sourceUrl, publishedAt,
+      "imageUrl": image.asset->_url
+    },
+    "total": count(*[_type == "news"])
+  }`);
+  news = data.news || [];
+  total = data.total || 0;
+}
+
+const totalPages = Math.ceil(total / limit);
+---
+
+<Layout title="Tech News — PCL Tech Hub" description="Latest tech news and industry updates">
+  <main class="news-page">
+    <div class="container">
+      <header class="page-header">
+        <h1>📰 Tech News</h1>
+        <p>Stay up to date with the latest tech news and industry developments</p>
+      </header>
+
+      <!-- News List -->
+      <div class="news-list">
+        {news.map((item) => (
+          <article class="news-card">
+            <div class="news-body">
+              {item.imageUrl && (
+                <img src={item.imageUrl} alt={item.title} class="news-image" loading="lazy" />
+              )}
+              <div class="news-content">
+                <h2>{item.title}</h2>
+                <p class="news-summary">{item.summary}</p>
+                <div class="news-meta">
+                  {item.source && <span class="news-source">{item.source}</span>}
+                  {item.publishedAt && (
+                    <time>
+                      {new Date(item.publishedAt).toLocaleDateString('en-KE', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </time>
+                  )}
+                </div>
+                {item.sourceUrl && (
+                  <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" class="news-link">
+                    Read more →
+                  </a>
+                )}
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {news.length === 0 && (
+        <div class="empty-state">
+          <p style="font-size: 2rem;">📰</p>
+          <p>No news available yet. Check back soon!</p>
+        </div>
+      )}
+
+      <!-- Pagination -->
+      {totalPages > 1 && (
+        <div class="pagination">
+          {page > 1 && (
+            <a href={`/news?page=${page - 1}`} class="page-link">
+              ← Previous
+            </a>
+          )}
+          <span class="page-info">Page {page} of {totalPages}</span>
+          {page < totalPages && (
+            <a href={`/news?page=${page + 1}`} class="page-link">
+              Next →
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem; }
+  .news-page { padding: 2rem 0; }
+
+  .page-header { text-align: center; margin-bottom: 2rem; }
+  .page-header h1 { font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; }
+  .page-header p { color: #A9C4BE; }
+
+  .news-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+  }
+
+  .news-card {
+    background: #050d0a;
+    border: 1px solid rgba(238, 97, 0, 0.2);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+
+  .news-card:hover {
+    border-color: #EE6100;
+    transform: translateY(-2px);
+  }
+
+  .news-body {
+    display: flex;
+    gap: 1.25rem;
+    padding: 1.25rem;
+  }
+
+  .news-image {
+    width: 200px;
+    height: 140px;
+    object-fit: cover;
+    border-radius: 8px;
+    flex-shrink: 0;
+  }
+
+  .news-content { flex: 1; display: flex; flex-direction: column; }
+
+  .news-content h2 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: #F4F1EA;
+  }
+
+  .news-summary {
+    font-size: 0.9rem;
+    color: #A9C4BE;
+    line-height: 1.6;
+    margin-bottom: 0.75rem;
+  }
+
+  .news-meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.8rem;
+    color: #4a6a8a;
+    margin-bottom: 0.5rem;
+  }
+
+  .news-source {
+    color: #EE6100;
+    font-weight: 600;
+  }
+
+  .news-link {
+    display: inline-block;
+    color: #2BB6A3;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    margin-top: auto;
+    transition: color 0.2s;
+  }
+
+  .news-link:hover { color: #EE6100; }
+
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #4a6a8a;
+  }
+
+  .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+
+  .page-link {
+    padding: 0.5rem 1rem;
+    background: rgba(238, 97, 0, 0.2);
+    color: #EE6100;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: background 0.2s;
+  }
+
+  .page-link:hover { background: #EE6100; color: #000; }
+
+  .page-info { color: #4a6a8a; font-size: 0.9rem; }
+
+  @media (max-width: 768px) {
+    .news-body { flex-direction: column; }
+    .news-image { width: 100%; height: 200px; }
+  }
+</style>

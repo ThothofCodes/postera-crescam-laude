@@ -13,6 +13,7 @@ import NotificationBell from '../../components/NotificationBell';
 import ChatMonitor from '../../components/ChatMonitor';
 import PulseBoard from '../../../components/PulseBoard';
 import PaymentNotifications from '../../components/PaymentNotifications';
+import { getSocketAuthToken } from '../../../hooks/useSocket';
 
 const DEPT_COLORS = { internet:'#2BB6A3', webdev:'#a78bfa', playstation:'#ffd700', repair:'#ff8800', cybersecurity:'#ff3366', govadmin:'#00ff88' };
 
@@ -33,6 +34,8 @@ const SUPER_LINKS = [
   ['Blog Management','📝','/admin/super/blog'],
   ['Tech Studio','🎛','/admin/super/studio'],
   ['Meeting Room','📹','/admin/super/meetings'],
+  ['💰 Monetization','💰','/admin/super/monetization'],
+  ['🐛 Errors','🐛','/admin/super/errors'],
   ['Audit Log','☰','/admin/super/audit'],
   ['Broadcast','◈','/admin/super/broadcast'],
   ['Settings','◉','/admin/super/settings'],
@@ -325,7 +328,7 @@ export function SuperAdminLayout() {
 
         <main style={{ flex: 1, overflowY: 'auto', padding: '1.25rem' }}>
           <div style={{ marginBottom: '1rem' }}>
-            <PulseBoard authToken={localStorage.getItem('adminToken') || localStorage.getItem('token')} />
+            <PulseBoard authToken={getSocketAuthToken() || localStorage.getItem('adminToken')} />
           </div>
           <Outlet />
         </main>
@@ -448,7 +451,7 @@ export default function SuperDashboard() {
 
       {showChatModule && (
         <ChatMonitor 
-          authToken={localStorage.getItem('adminToken') || localStorage.getItem('token')}
+          authToken={getSocketAuthToken() || localStorage.getItem('adminToken')}
           onClose={() => setShowChatModule(false)}
         />
       )}

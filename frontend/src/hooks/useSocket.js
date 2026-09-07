@@ -5,8 +5,13 @@ import io from 'socket.io-client';
 let socket;
 let socketToken; // tracks which token the live `socket` singleton was built with
 
+// In-memory token for Socket.IO auth (never persisted to localStorage)
+let _socketAuthToken = null;
+export function setSocketAuthToken(token) { _socketAuthToken = token; }
+export function getSocketAuthToken() { return _socketAuthToken; }
+
 export const useSocket = (eventHandlers = {}) => {
-  const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+  const token = _socketAuthToken || localStorage.getItem('adminToken');
   const handlersRef = useRef(eventHandlers);
 
   // Update handlers ref when eventHandlers change
@@ -19,9 +24,8 @@ export const useSocket = (eventHandlers = {}) => {
       // Connect to socket with authentication
       // When tunneled, derive backend URL from current page origin
       // (both frontend and backend are served from the same tunnel)
-      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const BACKEND_URL = import.meta.env.VITE_API_URL
-        || (isLocalhost ? 'http://localhost:5001' : window.location.origin);
+      // Always connect through the same origin so Vite/dev-server proxy handles /socket.io
+      const BACKEND_URL = import.meta.env.VITE_API_URL || window.location.origin;
 
       // FIX (Continuity Audit, Part One, Exhibit A): the auth payload used to
       // be sent as `Bearer ${token}`. Socket.IO's `auth` field is not an HTTP

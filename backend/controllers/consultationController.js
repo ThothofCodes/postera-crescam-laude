@@ -95,7 +95,8 @@ exports.createConsultation = async (req, res, next) => {
       }
     }
 
-    sendSMS(client.phone, `Consultation booked! Type: ${consultationType}, Date: ${new Date(rest.preferredDate).toDateString()}. Fee: KES ${fee}.`);
+    const notifyTo = client.email || client.phone;
+    if (notifyTo) sendSMS(notifyTo, `Consultation booked! Type: ${consultationType}, Date: ${new Date(rest.preferredDate).toDateString()}. Fee: KES ${fee}.`);
     res.status(201).json(consultation);
   } catch (err) { next(err); }
 };
@@ -104,8 +105,9 @@ exports.confirmConsultation = async (req, res, next) => {
   try {
     const c = await Consultation.findByIdAndUpdate(req.params.id, { status: 'confirmed' }, { new: true }).populate('client');
     if (!c) return res.status(404).json({ message: 'Consultation not found' });
-    if (c.client?.phone) {
-      sendSMS(c.client.phone, `Your consultation on ${new Date(c.preferredDate).toDateString()} is CONFIRMED. See you then!`);
+    const notifyTo = c.client?.email || c.client?.phone;
+    if (notifyTo) {
+      sendSMS(notifyTo, `Your consultation on ${new Date(c.preferredDate).toDateString()} is CONFIRMED. See you then!`);
     }
     res.json(c);
   } catch (err) { next(err); }
@@ -157,8 +159,9 @@ exports.cancelConsultation = async (req, res, next) => {
     if (mongoose.connection.readyState === 1) {
       await AvailabilitySlot.findOneAndUpdate({ consultation: c._id }, { isBooked: false, consultation: null });
     }
-    if (c.client?.phone) {
-      sendSMS(c.client.phone, `Your consultation on ${new Date(c.preferredDate).toDateString()} has been cancelled. Contact us to reschedule.`);
+    const notifyTo = c.client?.email || c.client?.phone;
+    if (notifyTo) {
+      sendSMS(notifyTo, `Your consultation on ${new Date(c.preferredDate).toDateString()} has been cancelled. Contact us to reschedule.`);
     }
     res.json(c);
   } catch (err) { next(err); }

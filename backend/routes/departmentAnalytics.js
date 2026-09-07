@@ -3,8 +3,10 @@
 const router = require('express').Router();
 const { getDepartmentAnalytics, getDepartmentTimeline } = require('../controllers/departmentAnalyticsController');
 const { protect, superAdminGuard } = require('../middleware/auth');
+const { cacheMiddleware, TTL } = require('../middleware/cache');
 
-router.get('/', protect, superAdminGuard, getDepartmentAnalytics);
-router.get('/:slug/timeline', protect, superAdminGuard, getDepartmentTimeline);
+// Cached — department analytics are heavy aggregation queries
+router.get('/', protect, superAdminGuard, cacheMiddleware('deptAnalytics', TTL.SHORT), getDepartmentAnalytics);
+router.get('/:slug/timeline', protect, superAdminGuard, cacheMiddleware('deptAnalytics:timeline', TTL.SHORT), getDepartmentTimeline);
 
 module.exports = router;

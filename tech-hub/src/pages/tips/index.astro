@@ -1,0 +1,313 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { sanityClient, sanityReady } from '../../lib/sanity';
+
+const difficulty = Astro.url.searchParams.get('difficulty');
+const category = Astro.url.searchParams.get('category');
+const page = parseInt(Astro.url.searchParams.get('page') || '1');
+const limit = 20;
+const start = (page - 1) * limit;
+
+// Build GROQ filters
+const filters: string[] = [];
+if (difficulty) filters.push(`difficulty == "${difficulty}"`);
+if (category) filters.push(`category == "${category}"`);
+const filterStr = filters.length > 0 ? `&& ${filters.join(' && ')}` : '';
+
+let tips: any[] = [];
+let total = 0;
+
+if (sanityReady) {
+  const data = await sanityClient.fetch(`{
+    "tips": *[_type == "techTip" ${filterStr}] | order(publishedAt desc) [${start}...${start + limit}] {
+      _id, title, slug, tip, category, difficulty, publishedAt
+    },
+    "total": count(*[_type == "techTip" ${filterStr}])
+  }`);
+  tips = data.tips || [];
+  total = data.total || 0;
+}
+
+// Also fetch unique categories for the filter bar
+let allCategories: string[] = [];
+if (sanityReady) {
+  allCategories = await sanityClient.fetch(
+    'array(*[_type == "techTip"] | order(category asc).category)'
+  );
+}
+
+const totalPages = Math.ceil(total / limit);
+
+const DIFFICULTY_COLORS: Record<string, string> = {
+  beginner: '#2BB6A3',
+  intermediate: '#ffd700',
+  advanced: '#ff3366',
+};
+---
+
+<Layout title="Tech Tips — PCL Tech Hub" description="Quick tech tips for all skill levels">
+  <main class="tips-page">
+    <div class="container">
+      <header class="page-header">
+        <h1>💡 Tech Tips</h1>
+        <p>Quick, practical tips to level up your tech skills</p>
+      </header>
+
+      <!-- Difficulty Filter -->
+      <div class="filters">
+        <a href="/tips" class={!difficulty ? 'filter active' : 'filter'}>All</a>
+        <a href="/tips?difficulty=beginner" class={difficulty === 'beginner' ? 'filter active beginner' : 'filter beginner'}>
+          🟢 Beginner
+        </a>
+        <a href="/tips?difficulty=intermediate" class={difficulty === 'intermediate' ? 'filter active intermediate' : 'filter intermediate'}>
+          🟡 Intermediate
+        </a>
+        <a href="/tips?difficulty=advanced" class={difficulty === 'advanced' ? 'filter active advanced' : 'filter advanced'}>
+          🔴 Advanced
+        </a>
+      </div>
+
+      <!-- Category Filter -->
+      {allCategories.length > 0 && (
+        <div class="category-filters">
+          {allCategories.map((cat) => (
+            <a
+              href={`/tips?category=${cat}${difficulty ? `&difficulty=${difficulty}` : ''}`}
+              class={category === cat ? 'cat-chip active' : 'cat-chip'}
+            >
+              {cat}
+            </a>
+          ))}
+        </div>
+      )}
+
+      <!-- Tips Grid -->
+      <div class="tips-grid">
+        {tips.map((tip) => (
+          <div class="tip-card">
+            <div class="tip-header">
+              <span
+                class="tip-difficulty"
+                style={`background: ${DIFFICULTY_COLORS[tip.difficulty] || '#4a6a8a'}`}
+              >
+                {tip.difficulty}
+              </span>
+              {tip.category && (
+                <span class="tip-category">{tip.category}</span>
+              )}
+            </div>
+            {tip.title && <h3>{tip.title}</h3>}
+            <p class="tip-text">{tip.tip}</p>
+            {tip.publishedAt && (
+              <time class="tip-date">
+                {new Date(tip.publishedAt).toLocaleDateString('en-KE', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </time>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {tips.length === 0 && (
+        <div class="empty-state">
+          <p style="font-size: 2rem;">💡</p>
+          <p>No tips available{difficulty ? ` for "${difficulty}" level` : ''}{category ? ` in "${category}"` : ''}.</p>
+          {(difficulty || category) && (
+            <a href="/tips" class="clear-filter">Clear filters</a>
+          )}
+        </div>
+      )}
+
+      <!-- Pagination -->
+      {totalPages > 1 && (
+        <div class="pagination">
+          {page > 1 && (
+            <a
+              href={`/tips?page=${page - 1}${difficulty ? `&difficulty=${difficulty}` : ''}${category ? `&category=${category}` : ''}`}
+              class="page-link"
+            >
+              ← Previous
+            </a>
+          )}
+          <span class="page-info">Page {page} of {totalPages}</span>
+          {page < totalPages && (
+            <a
+              href={`/tips?page=${page + 1}${difficulty ? `&difficulty=${difficulty}` : ''}${category ? `&category=${category}` : ''}`}
+              class="page-link"
+            >
+              Next →
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem; }
+  .tips-page { padding: 2rem 0; }
+
+  .page-header { text-align: center; margin-bottom: 2rem; }
+  .page-header h1 { font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; }
+  .page-header p { color: #A9C4BE; }
+
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    justify-content: center;
+  }
+
+  .filter {
+    padding: 0.4rem 1rem;
+    border-radius: 99px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none;
+    color: #A9C4BE;
+    background: rgba(43, 182, 163, 0.1);
+    border: 1px solid rgba(43, 182, 163, 0.3);
+    transition: all 0.2s;
+  }
+
+  .filter:hover { background: rgba(43, 182, 163, 0.2); }
+  .filter.active { background: #EE6100; color: #000; border-color: #EE6100; }
+  .filter.active.beginner { background: #2BB6A3; border-color: #2BB6A3; }
+  .filter.active.intermediate { background: #ffd700; border-color: #ffd700; color: #000; }
+  .filter.active.advanced { background: #ff3366; border-color: #ff3366; }
+
+  .category-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 2rem;
+    justify-content: center;
+  }
+
+  .cat-chip {
+    padding: 0.25rem 0.75rem;
+    border-radius: 99px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-decoration: none;
+    color: #A9C4BE;
+    background: rgba(43, 182, 163, 0.05);
+    border: 1px solid rgba(43, 182, 163, 0.15);
+    transition: all 0.2s;
+  }
+
+  .cat-chip:hover { background: rgba(43, 182, 163, 0.15); }
+  .cat-chip.active { background: rgba(43, 182, 163, 0.3); border-color: #2BB6A3; color: #2BB6A3; }
+
+  .tips-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+  }
+
+  .tip-card {
+    background: rgba(43, 182, 163, 0.06);
+    border: 1px solid rgba(43, 182, 163, 0.25);
+    border-radius: 10px;
+    padding: 1.25rem;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+
+  .tip-card:hover {
+    border-color: #EE6100;
+    transform: translateY(-2px);
+  }
+
+  .tip-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .tip-difficulty {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 99px;
+    color: #000;
+  }
+
+  .tip-category {
+    font-size: 0.75rem;
+    color: #4a6a8a;
+    font-weight: 500;
+  }
+
+  .tip-card h3 {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    color: #F4F1EA;
+  }
+
+  .tip-text {
+    font-size: 0.9rem;
+    color: #c0d8f0;
+    line-height: 1.6;
+    margin-bottom: 0.75rem;
+  }
+
+  .tip-date {
+    font-size: 0.75rem;
+    color: #4a6a8a;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #4a6a8a;
+  }
+
+  .empty-state p { margin-bottom: 0.5rem; }
+
+  .clear-filter {
+    display: inline-block;
+    margin-top: 1rem;
+    padding: 0.4rem 1rem;
+    background: rgba(238, 97, 0, 0.2);
+    color: #EE6100;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.85rem;
+  }
+
+  .clear-filter:hover { background: #EE6100; color: #000; }
+
+  .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+
+  .page-link {
+    padding: 0.5rem 1rem;
+    background: rgba(238, 97, 0, 0.2);
+    color: #EE6100;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: background 0.2s;
+  }
+
+  .page-link:hover { background: #EE6100; color: #000; }
+
+  .page-info { color: #4a6a8a; font-size: 0.9rem; }
+
+  @media (max-width: 768px) {
+    .tips-grid { grid-template-columns: 1fr; }
+  }
+</style>

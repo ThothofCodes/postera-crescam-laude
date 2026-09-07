@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useCart } from '../context/CartContext';
+import analytics from '../utils/analytics';
 import { formatKES, noImagePlaceholder } from '../utils/helpers';
 import { Spinner } from '../components/UI';
 import toast from 'react-hot-toast';
@@ -17,7 +18,10 @@ export default function ProductDetail() {
   const { addItem } = useCart();
 
   useEffect(() => {
-    api.get(`/products/${slug}`).then((r) => setProduct(r.data)).finally(() => setLoading(false));
+    api.get(`/products/${slug}`).then((r) => {
+      setProduct(r.data);
+      analytics.productViewed(r.data._id, r.data.name, r.data.price);
+    }).finally(() => setLoading(false));
   }, [slug]);
 
   if (loading) return <Spinner />;
@@ -28,6 +32,7 @@ export default function ProductDetail() {
 
   const handleAdd = () => {
     addItem(product, qty);
+    analytics.addToCart(product._id, product.name, qty, product.price);
     toast.success(`${product.name} added to cart`);
   };
 

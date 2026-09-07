@@ -1,11 +1,6 @@
 // Copyright (c) 2026 Thoth of Codes. Licensed under the MIT License.
 const mongoose = require('mongoose');
 const Product = require('../models/Product');
-// FIX: import uploadProductImages from the new upload middleware.
-// Previously, multer-storage-cloudinary stored files directly and req.files
-// arrived with a .path property containing the Cloudinary URL. With
-// memoryStorage, req.files arrives with .buffer (raw bytes in memory);
-// uploadProductImages() takes those buffers and returns Cloudinary secure_urls.
 const { uploadProductImages } = require('../middleware/upload');
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -124,9 +119,6 @@ exports.createProduct = async (req, res, next) => {
     if (!body.description) return res.status(400).json({ message: 'Description required' });
     if (body.price === undefined || body.price < 0) return res.status(400).json({ message: 'Valid price required' });
 
-    // FIX: was req.files.map((f) => f.path) — f.path is only set by
-    // CloudinaryStorage, not by memoryStorage. Use uploadProductImages()
-    // to upload buffers and return secure_url strings.
     if (req.files?.length) {
       body.images = await uploadProductImages(req.files);
     }
@@ -143,8 +135,6 @@ exports.updateProduct = async (req, res, next) => {
     if (body.category && !VALID_CATS.includes(body.category)) return res.status(400).json({ message: 'Invalid category' });
     if (!body.name) delete body.name;
 
-    // FIX: same as createProduct. New images replace the array when provided;
-    // if no files are attached, existing images are preserved.
     if (req.files?.length) {
       body.images = await uploadProductImages(req.files);
     }

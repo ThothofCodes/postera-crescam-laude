@@ -1,25 +1,32 @@
 // Copyright (c) 2026 Thoth of Codes. Licensed under the MIT License.
 const router = require('express').Router();
-const {
-  login, register, getMe, verifyToken, setPassword, changeFirstPassword,
-} = require('../controllers/authController');
+const { login, register, getMe, verifyToken, setPassword, changeFirstPassword, logout } = require('../controllers/authController');
 const { protect, superAdminGuard } = require('../middleware/auth');
+const { setCsrfCookie } = require('../middleware/csrf');
+const { validate } = require('../middleware/validate');
+const { bruteForceProtection, getAllStatus } = require('../middleware/bruteForce');
+const { loginSchema, registerSchema, changeFirstPasswordSchema, verifyTokenSchema, setPasswordSchema } = require('../validations/schemas');
 
-// Login — public (rate-limited in server.js)
-router.post('/login', login);
-router.post('/verify-token', verifyToken); // Added for staff invitation verification
-router.post('/set-password', setPassword); // Added for staff invitation password setup
+router.get('/csrf-token', (req, res) => {
+  const token = setCsrfCookie(res);
+  res.json({ csrfToken: token });
+});
+
+// Brute-force protection: progressive delay + IP blocking on repeated failures
+router.post('/login', bruteForceProtection, validate(loginSchema), login);
+router.post('/verify-token', validate(verifyTokenSchema), verifyToken);
+router.post('/set-password', validate(setPasswordSchema), setPassword);
 
 router.use(protect);
 
-// Register — requires Super Admin auth
-// This prevents open user registration. The first Super Admin is created via seed.js
-router.post('/register', superAdminGuard, register);
+// Brute-force status (super admin only — for security dashboard)
+router.get('/brute-force-status', superAdminGuard, (req, res) => {
+  res.json(getAllStatus());
+});
 
-// Forced password change (first login) — requires auth but works even when mustChangePassword is true
-router.post('/change-first-password', changeFirstPassword);
-
-// Get current user
+router.post('/register', superAdminGuard, validate(registerSchema), register);
+router.post('/change-first-password', validate(changeFirstPasswordSchema), changeFirstPassword);
+router.post('/logout', logout);
 router.get('/me', getMe);
 
 module.exports = router;

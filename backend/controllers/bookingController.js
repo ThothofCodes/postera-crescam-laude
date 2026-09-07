@@ -104,7 +104,8 @@ exports.recordPayment = async (req, res, next) => {
     await Service.findByIdAndUpdate(booking.service._id, { $inc: { totalRevenue: parsedAmount } });
     await Client.findByIdAndUpdate(booking.client._id, { $inc: { totalSpent: parsedAmount } });
 
-    sendSMS(booking.client.phone, `Payment confirmed for ${booking.service.name}. Ref: ${mpesaRef || 'N/A'}. Thank you!`);
+    const notifyTo = booking.client.email || booking.client.phone;
+    if (notifyTo) sendSMS(notifyTo, `Payment confirmed for ${booking.service.name}. Ref: ${mpesaRef || 'N/A'}. Thank you!`);
     res.json(booking);
   } catch (err) { next(err); }
 };

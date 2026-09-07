@@ -46,7 +46,7 @@ export default function DepartmentAnalytics() {
   const handleDownloadPdf = async () => {
     setDownloadingPdf(true);
     try {
-      const response = await fetch(`/api/analytics/departments/pdf?year=${year}`);
+      const response = await fetch(`/api/analytics/departments/pdf?year=${year}`, { credentials: 'include' });
       if (!response.ok) throw new Error('Failed to download');
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);

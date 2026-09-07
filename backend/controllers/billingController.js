@@ -1,31 +1,24 @@
-const mongoose = require('mongoose');
 const generateReceipt = require('../utils/generateReceipt');
 // Copyright (c) 2026 Thoth of Codes. Licensed under the MIT License.
 const Invoice = require('../models/Invoice');
+const logger = require('../utils/logger');
 const { stkPush, isCallbackProcessed, markCallbackProcessed } = require('../middleware/mpesa');
 const { sendSMS } = require('../config/africastalking');
+const { invalidateMultiple } = require('../middleware/cache');
 
-const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
-const safePage = (p) => Math.max(1, Math.min(Number(p) || 1, 1000));
-const safeLimit = (l) => Math.max(1, Math.min(Number(l) || 20, 100));
+// Zod validates: client ID, line items, due date, ID params, query params
 
 exports.createInvoice = async (req, res, next) => {
   try {
-    const {
-      clientId, lineItems, dueDate, notes, taxRate,
-    } = req.body;
-    if (!isValidId(clientId)) return res.status(400).json({ message: 'Invalid client ID' });
-    if (!lineItems?.length) return res.status(400).json({ message: 'At least one line item required' });
-    if (!dueDate) return res.status(400).json({ message: 'Due date required' });
-
+    const { clientId, lineItems, dueDate, notes, taxRate } = req.body;
     const items = lineItems.map((i) => ({
-      description: String(i.description).slice(0, 200),
-      qty: Math.max(1, Number(i.qty)),
-      unitPrice: Math.max(0, Number(i.unitPrice)),
-      total: Math.max(1, Number(i.qty)) * Math.max(0, Number(i.unitPrice)),
+      description: i.description.slice(0, 200),
+      qty: Math.max(1, i.qty),
+      unitPrice: Math.max(0, i.unitPrice),
+      total: Math.max(1, i.qty) * Math.max(0, i.unitPrice),
     }));
     const subtotal = items.reduce((s, i) => s + i.total, 0);
-    const rate = Number(taxRate) || 0.16;
+    const rate = taxRate || 0.16;
     const taxAmount = Math.round(subtotal * rate * 100) / 100;
     const total = subtotal + taxAmount;
 
@@ -49,14 +42,12 @@ exports.createInvoice = async (req, res, next) => {
 
 exports.getInvoices = async (req, res, next) => {
   try {
-    const page = safePage(req.query.page); const
-      limit = safeLimit(req.query.limit);
+    const { page = 1, limit = 20, status, clientId } = req.query;
     const filter = req.user.role === 'SUPER_ADMIN' ? {} : { departmentSlug: req.user.departmentSlug };
-    if (req.query.status) filter.status = req.query.status;
-    if (req.query.clientId && isValidId(req.query.clientId)) filter.client = req.query.clientId;
+    if (status) filter.status = status;
+    if (clientId) filter.client = clientId;
     const [invoices, total] = await Promise.all([
-      Invoice.find(filter).populate('client', 'fullName phone').sort('-createdAt').skip((page - 1) * limit)
-        .limit(limit),
+      Invoice.find(filter).populate('client', 'fullName phone').sort('-createdAt').skip((page - 1) * limit).limit(limit),
       Invoice.countDocuments(filter),
     ]);
     res.json({ invoices, total, page });
@@ -65,7 +56,6 @@ exports.getInvoices = async (req, res, next) => {
 
 exports.getInvoice = async (req, res, next) => {
   try {
-    if (!isValidId(req.params.id)) return res.status(400).json({ message: 'Invalid ID' });
     const invoice = await Invoice.findById(req.params.id).populate('client', 'fullName phone email');
     if (!invoice) return res.status(404).json({ message: 'Invoice not found' });
     res.json(invoice);
@@ -74,20 +64,19 @@ exports.getInvoice = async (req, res, next) => {
 
 exports.sendInvoice = async (req, res, next) => {
   try {
-    if (!isValidId(req.params.id)) return res.status(400).json({ message: 'Invalid ID' });
-    const invoice = await Invoice.findById(req.params.id).populate('client', 'fullName phone');
+    const invoice = await Invoice.findById(req.params.id).populate('client', 'fullName phone email');
     if (!invoice) return res.status(404).json({ message: 'Invoice not found' });
     if (invoice.status !== 'DRAFT') return res.status(400).json({ message: 'Only DRAFT invoices can be sent' });
     invoice.status = 'SENT';
     await invoice.save();
-    sendSMS(invoice.client.phone, `Invoice ${invoice.invoiceId} from Postera Crescam Laude: KES ${invoice.totalAmount}. Due: ${invoice.dueDate.toDateString()}. Pay via M-Pesa or visit our portal.`);
+    const notifyTo = invoice.client.email || invoice.client.phone;
+    if (notifyTo) sendSMS(notifyTo, `Invoice ${invoice.invoiceId} from Postera Crescam Laude: KES ${invoice.totalAmount}. Due: ${invoice.dueDate.toDateString()}. Pay via M-Pesa or visit our portal.`);
     res.json(invoice);
   } catch (err) { next(err); }
 };
 
 exports.initiatePayment = async (req, res, next) => {
   try {
-    if (!isValidId(req.params.id)) return res.status(400).json({ message: 'Invalid ID' });
     const invoice = await Invoice.findById(req.params.id).populate('client', 'fullName phone');
     if (!invoice) return res.status(404).json({ message: 'Invoice not found' });
     if (['PAID', 'CANCELLED'].includes(invoice.status)) return res.status(400).json({ message: `Invoice is already ${invoice.status}` });
@@ -105,15 +94,8 @@ exports.mpesaCallback = async (req, res) => {
     const result = req.body?.Body?.stkCallback;
     if (!result || result.ResultCode !== 0) return;
     const { CheckoutRequestID, CallbackMetadata } = result;
-
-    // Replay protection
-    if (isCallbackProcessed(CheckoutRequestID)) {
-      console.warn(`[MPESA-BILLING] Callback replay blocked: ${CheckoutRequestID}`);
-      return;
-    }
+    if (isCallbackProcessed(CheckoutRequestID)) { logger.warn(`[MPESA-BILLING] Callback replay blocked: ${CheckoutRequestID}`); return; }
     markCallbackProcessed(CheckoutRequestID);
-    console.log(`[MPESA-BILLING] Callback received: ${CheckoutRequestID} code=${result.ResultCode}`);
-
     const meta = {};
     CallbackMetadata?.Item?.forEach(({ Name, Value }) => { meta[Name] = Value; });
     const invoice = await Invoice.findOne({ checkoutRequestId: CheckoutRequestID });
@@ -125,36 +107,26 @@ exports.mpesaCallback = async (req, res) => {
     invoice.status = invoice.balance <= 0 ? 'PAID' : 'PARTIAL';
     if (invoice.status === 'PAID') invoice.paidAt = new Date();
     await invoice.save();
-    // Accrue loyalty points (1 pt per KES 100 paid)
+    invalidateMultiple(['admin:stats', 'admin:revenue', 'analytics', 'deptAnalytics']).catch(() => {});
     if (invoice.status === 'PAID') {
-      try {
-        const pts = Math.floor((invoice.amountPaid || 0) / 100);
-        if (pts > 0) {
-          await require('../models/CRMClient').findByIdAndUpdate(invoice.clientId, { $inc: { loyaltyPoints: pts } });
-        }
-      } catch (_) {}
-    }
-    // Generate PDF receipt asynchronously (non-blocking)
-    if (invoice.status === 'PAID') {
-      generateReceipt(invoice).then((url) => {
-        if (url) require('../models/Invoice').findByIdAndUpdate(invoice._id, { receiptUrl: url }).catch(() => {});
+      try { const pts = Math.floor((invoice.amountPaid || 0) / 100); if (pts > 0) await require('../models/CRMClient').findByIdAndUpdate(invoice.clientId, { $inc: { loyaltyPoints: pts } }); } catch (_) {}
+      generateReceipt(invoice).then((url) => { if (url) require('../models/Invoice').findByIdAndUpdate(invoice._id, { receiptUrl: url }).catch(() => {}); }).catch(() => {});
+      // Record platform fee for monetization tracking
+      const { recordFee } = require('../controllers/monetizationController');
+      recordFee({
+        sourceType: 'invoice', sourceId: invoice._id, sourceModel: 'Invoice',
+        grossAmount: paid, department: invoice.department, category: 'billing',
+        paymentMethod: 'mpesa', paymentReference: invoice.mpesaRef,
+        description: `Invoice ${invoice.invoiceId}`,
       }).catch(() => {});
     }
-    // Real-time: push payment confirmation
     try {
       const { emitPaymentResult } = require('../socket');
-      const checkId = req.body?.Body?.stkCallback?.CheckoutRequestID || '';
-      emitPaymentResult(checkId, {
-        success: invoice.status === 'PAID',
-        invoiceId: invoice._id,
-        mpesaRef: invoice.mpesaRef,
-        amount: invoice.amountPaid,
-        paidAt: invoice.paidAt,
-      });
+      emitPaymentResult(CheckoutRequestID, { success: invoice.status === 'PAID', invoiceId: invoice._id, mpesaRef: invoice.mpesaRef, amount: invoice.amountPaid, paidAt: invoice.paidAt });
     } catch (_) {}
     const client = await require('../models/CRMClient').findById(invoice.client);
-    if (client) sendSMS(client.phone, `Payment of KES ${paid} received for invoice ${invoice.invoiceId}. Ref: ${invoice.mpesaRef}. Balance: KES ${invoice.balance}. Thank you!`);
-  } catch (err) { console.error('Invoice callback error:', err.message); }
+    if (client) { const notifyTo = client.email || client.phone; if (notifyTo) sendSMS(notifyTo, `Payment of KES ${paid} received for invoice ${invoice.invoiceId}. Ref: ${invoice.mpesaRef}. Balance: KES ${invoice.balance}. Thank you!`); }
+  } catch (err) { logger.error('Invoice callback error', { message: err.message }); }
 };
 
 exports.getMyInvoices = async (req, res, next) => {
@@ -175,7 +147,6 @@ exports.getOverdue = async (req, res, next) => {
 
 exports.cancelInvoice = async (req, res, next) => {
   try {
-    if (!isValidId(req.params.id)) return res.status(400).json({ message: 'Invalid ID' });
     const invoice = await Invoice.findByIdAndUpdate(req.params.id, { status: 'CANCELLED' }, { new: true });
     if (!invoice) return res.status(404).json({ message: 'Invoice not found' });
     res.json(invoice);

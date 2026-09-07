@@ -1,26 +1,36 @@
 // Copyright (c) 2026 Thoth of Codes. Licensed under the MIT License.
 const express = require('express');
-
 const router = express.Router();
 const productController = require('../controllers/productController');
 const { protect, deptAdminGuard } = require('../middleware/auth');
-const { upload } = require('../middleware/upload'); // Destructure the upload object
+const { upload } = require('../middleware/upload');
+const { cacheMiddleware, invalidateCache, TTL } = require('../middleware/cache');
+const { z } = require('zod');
+const { validate } = require('../middleware/validate');
+const {
+  createProductSchema, updateProductSchema, productsQuerySchema, mongoId,
+} = require('../validations/schemas');
 
-// Public routes
-router.get('/', productController.getProducts); // Changed from getAll to getProducts
-router.get('/featured', productController.getFeatured);
-router.get('/search', productController.search);
-router.get('/slug/:slug', productController.getProductBySlug);
-router.get('/:id', productController.getById);
+// ── Public routes (cached) ───────────────────────────────────────────────────
+router.get('/', validate(productsQuerySchema, 'query'), cacheMiddleware('products', TTL.MEDIUM), productController.getProducts);
+router.get('/featured', cacheMiddleware('products:featured', TTL.LONG), productController.getFeatured);
+router.get('/search', cacheMiddleware('products:search', TTL.MEDIUM), productController.search);
+router.get('/slug/:slug', cacheMiddleware('products:slug', TTL.LONG), productController.getProductBySlug);
+router.get('/:id', validate(z.object({ id: mongoId }), 'params'), cacheMiddleware('products:id', TTL.LONG), productController.getById);
 
-// Protected routes
+// ── Protected routes ─────────────────────────────────────────────────────────
 router.use(protect);
-
-// Admin routes
 router.use(deptAdminGuard);
 
-router.post('/', upload.array('images', 5), productController.createProduct); // Changed from create to createProduct
-router.put('/:id', upload.array('images', 5), productController.updateProduct); // Changed from update to updateProduct
-router.delete('/:id', productController.deleteProduct); // Changed from delete to deleteProduct
+const invalidateProductCache = async (req, res, next) => {
+  res.on('finish', () => {
+    if (res.statusCode < 400) invalidateCache('products').catch(() => {});
+  });
+  next();
+};
+
+router.post('/', invalidateProductCache, validate(createProductSchema), upload.array('images', 5), productController.createProduct);
+router.put('/:id', invalidateProductCache, validate(updateProductSchema), upload.array('images', 5), productController.updateProduct);
+router.delete('/:id', invalidateProductCache, productController.deleteProduct);
 
 module.exports = router;

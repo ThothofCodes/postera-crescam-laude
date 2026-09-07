@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Thoth of Codes. Licensed under the MIT License.
 const axios = require('axios');
-const _crypto = require('crypto');
+const { getCallbackUrl: resolveCallbackUrl } = require('../utils/ngrokDetector');
 // Webhook signature is only for verifying incoming callbacks — NOT for the STK request URL
 // Safaricom rejects callback URLs with query parameters
 
@@ -82,21 +82,33 @@ const validatePhone = (phone) => {
 const generateToken = async () => {
   const { MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET } = process.env;
   if (!MPESA_CONSUMER_KEY || !MPESA_CONSUMER_SECRET) {
-    throw new Error('M-Pesa credentials not configured');
+    throw new Error('M-Pesa credentials not configured. Set MPESA_CONSUMER_KEY and MPESA_CONSUMER_SECRET in backend/.env');
   }
   const auth = Buffer.from(`${MPESA_CONSUMER_KEY}:${MPESA_CONSUMER_SECRET}`).toString('base64');
-  const { data } = await axios.get(
-    `${MPESA_BASE_URL}/oauth/v1/generate?grant_type=client_credentials`,
-    { headers: { Authorization: `Basic ${auth}` }, timeout: 10000 },
-  );
-  if (!data.access_token) throw new Error('Failed to obtain M-Pesa access token');
-  return data.access_token;
+  try {
+    const { data } = await axios.get(
+      `${MPESA_BASE_URL}/oauth/v1/generate?grant_type=client_credentials`,
+      { headers: { Authorization: `Basic ${auth}` }, timeout: 10000 },
+    );
+    if (!data.access_token) throw new Error('Failed to obtain M-Pesa access token');
+    return data.access_token;
+  } catch (err) {
+    // Surface the actual Safaricom error (e.g. "Wrong credentials")
+    const status = err.response?.status;
+    const body = err.response?.data;
+    const detail = body?.errorMessage || body?.error || body?.message || err.message;
+    const env = MPESA_ENV === 'production' ? 'PRODUCTION' : 'SANDBOX';
+    if (status === 401 || status === 403) {
+      throw new Error(`M-Pesa ${env} authentication failed: ${detail}. Check MPESA_CONSUMER_KEY and MPESA_CONSUMER_SECRET match the ${env} credentials at https://developer.safaricom.co.ke`);
+    }
+    throw new Error(`M-Pesa token error (${env}): ${detail}`);
+  }
 };
 
 const stkPush = async (phone, amount, accountRef, description) => {
-  const { MPESA_SHORTCODE, MPESA_PASSKEY, MPESA_CALLBACK_URL } = process.env;
-  if (!MPESA_SHORTCODE || !MPESA_PASSKEY || !MPESA_CALLBACK_URL) {
-    throw new Error('M-Pesa configuration incomplete');
+  const { MPESA_SHORTCODE, MPESA_PASSKEY } = process.env;
+  if (!MPESA_SHORTCODE || !MPESA_PASSKEY) {
+    throw new Error('M-Pesa configuration incomplete (missing SHORTCODE or PASSKEY)');
   }
 
   const validPhone = validatePhone(phone);
@@ -115,9 +127,11 @@ const stkPush = async (phone, amount, accountRef, description) => {
   const timestamp = new Date().toISOString().replace(/[-T:.Z]/g, '').slice(0, 14);
   const password = Buffer.from(`${MPESA_SHORTCODE}${MPESA_PASSKEY}${timestamp}`).toString('base64');
 
-  // Use the plain callback URL — Safaricom rejects URLs with query parameters
-  // Signature verification happens when the callback arrives, not in the request
-  const callbackUrl = MPESA_CALLBACK_URL;
+  // Resolve callback URL dynamically: ngrok auto-detect > manual override > env var
+  const callbackUrl = await resolveCallbackUrl('/api/payments/mpesa/callback');
+  if (!callbackUrl) {
+    throw new Error('No callback URL available. Set MPESA_CALLBACK_URL in .env or start ngrok');
+  }
 
   const stkPayload = {
     BusinessShortCode: MPESA_SHORTCODE,
@@ -134,7 +148,7 @@ const stkPush = async (phone, amount, accountRef, description) => {
   };
 
   console.log(`[MPESA] STK Push request: phone=${validPhone}, amount=${parsedAmount}, shortcode=${MPESA_SHORTCODE}`);
-  console.log(`[MPESA] Callback URL: ${callbackUrl}`);
+  console.log(`[MPESA] Callback URL: ${callbackUrl} (auto-detected)`);
 
   let data;
   try {

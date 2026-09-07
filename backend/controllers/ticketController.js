@@ -117,8 +117,8 @@ exports.updateStatus = async (req, res, next) => {
     if (previousTicket?.status !== req.body.status) {
       try {
         const User = require('../models/User');
-        const client = await User.findById(ticket.raisedBy).select('phone');
-        const phone = client?.phone;
+        const client = await User.findById(ticket.raisedBy).select('phone email');
+        const phone = client?.email || client?.phone;
         if (phone) {
           const messages = {
             OPEN: 'Your support ticket is received. We will update you shortly.',

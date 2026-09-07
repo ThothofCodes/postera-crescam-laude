@@ -12,11 +12,41 @@ const sanitizeBody = (body = {}) => {
   return clean;
 };
 
+// ── Parse cookies from request ──────────────────────────────────────────────
+function parseCookies(cookieHeader) {
+  const cookies = {};
+  if (!cookieHeader) return cookies;
+  cookieHeader.split(';').forEach((pair) => {
+    const [key, ...rest] = pair.split('=');
+    const value = rest.join('=').trim();
+    if (key) cookies[key.trim()] = decodeURIComponent(value);
+  });
+  return cookies;
+}
+
+/**
+ * Extract JWT from: httpOnly cookie → Authorization header (backward compat).
+ * The httpOnly cookie is the primary storage for browser clients.
+ * The Authorization header is a fallback for API clients, mobile apps, and Postman.
+ */
+function extractToken(req) {
+  // 1. Try httpOnly cookie first (browser clients)
+  const cookies = parseCookies(req.headers.cookie);
+  const cookieToken = cookies['pcl_token'];
+  if (cookieToken) return cookieToken;
+
+  // 2. Fallback to Authorization header (API clients, mobile, Postman)
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.split(' ')[1];
+  }
+
+  return null;
+}
+
 // ── Verify JWT + Session Validation ──────────────────────────────────
 exports.protect = async (req, res, next) => {
-  const token = req.headers.authorization?.startsWith('Bearer ')
-    ? req.headers.authorization.split(' ')[1]
-    : null;
+  const token = extractToken(req);
   if (!token) return res.status(401).json({ message: 'Not authorised — no token' });
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
@@ -25,7 +55,7 @@ exports.protect = async (req, res, next) => {
       return res.status(401).json({ message: 'Invalid token payload' });
     }
 
-    const user = await User.findById(decoded.id).populate('department', 'name slug');
+    const user = await User.findById(decoded.id).populate('department', 'name slug logoUrl');
     if (!user) return res.status(401).json({ message: 'User no longer exists' });
     if (!user.isActive) return res.status(401).json({ message: 'Account deactivated' });
 
@@ -44,6 +74,20 @@ exports.protect = async (req, res, next) => {
         });
       }
 
+      // ── Idle timeout check ─────────────────────────────────────────────
+      const IDLE_TIMEOUT_MS = parseInt(process.env.SESSION_IDLE_TIMEOUT_MINUTES || '30', 10) * 60 * 1000;
+      const idleMs = Date.now() - new Date(session.lastActivityAt).getTime();
+      if (idleMs > IDLE_TIMEOUT_MS) {
+        // Session idle too long — kill it
+        await ActiveSession.deleteOne({ jti: decoded.jti });
+        // Clear the JWT cookie on idle timeout
+        res.clearCookie('pcl_token', { path: '/' });
+        return res.status(401).json({
+          message: 'Session expired due to inactivity. Please log in again.',
+          code: 'SESSION_IDLE_TIMEOUT',
+        });
+      }
+
       // Update last activity
       session.lastActivityAt = new Date();
       await session.save({ validateBeforeSave: false });
@@ -53,6 +97,7 @@ exports.protect = async (req, res, next) => {
     next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
+      res.clearCookie('pcl_token', { path: '/' });
       return res.status(401).json({ message: 'Session expired — please log in again' });
     }
     res.status(401).json({ message: 'Invalid token' });

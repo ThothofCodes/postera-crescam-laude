@@ -123,15 +123,6 @@ class MetricsCollector {
         errors: v.errors,
       }));
 
-    // CPU usage (average across cores)
-    const cpuUsage = cpus.map((c) => {
-      const _total = Object.values(c.times).reduce((a, b) => a + b, 0);
-      return c.times.user + c.times.system;
-    });
-    const _cpuPercent = cpuUsage.length
-      ? ((cpuUsage.reduce((a, b) => a + b, 0) / (cpuUsage.length * 1)) * 0.01).toFixed(1)
-      : '0';
-
     return {
       uptime: {
         seconds: uptimeSec,

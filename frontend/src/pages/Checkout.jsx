@@ -8,6 +8,8 @@ import { formatKES } from '../utils/helpers';
 import PaymentForm from '../components/PaymentForm';
 import toast from 'react-hot-toast';
 import { T } from '../utils/theme';
+import analytics from '../utils/analytics';
+import PromoCodeInput from '../components/PromoCodeInput';
 
 const DELIVERY_FEE = 300;
 
@@ -144,8 +146,11 @@ export default function Checkout() {
   const [submitting, setSubmitting] = useState(false);
   const receiptRef = useRef(null);
 
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [appliedPromo, setAppliedPromo] = useState(null);
+
   const deliveryFee = form.deliveryType === 'delivery' ? DELIVERY_FEE : 0;
-  const grandTotal = total + deliveryFee;
+  const grandTotal = Math.max(0, total + deliveryFee - promoDiscount);
 
   const placeOrder = async (e) => {
     e.preventDefault(); setSubmitting(true);
@@ -154,8 +159,11 @@ export default function Checkout() {
         customer: { name: form.name, phone: form.phone, email: form.email, deliveryAddress: form.deliveryAddress },
         items: items.map((i) => ({ product: i._id, quantity: i.quantity })),
         deliveryType: form.deliveryType, deliveryFee, notes: form.notes, paymentMethod: form.paymentMethod,
+        promoCode: appliedPromo?.code || undefined, promoDiscount,
       });
       setOrder(data);
+      // Track order creation
+      analytics.orderCreated(data.orderNumber || data._id, data.totalAmount || grandTotal, items.length);
       // Warn if STK push failed but order was created
       if (data._stkError) {
         toast.error(data._stkError, { duration: 6000 });
@@ -204,9 +212,20 @@ export default function Checkout() {
             </tbody>
           </table>
 
+          <div style={{ padding: '0.75rem 0' }}>
+            <PromoCodeInput
+              orderAmount={total + deliveryFee}
+              itemType="products"
+              appliedPromo={appliedPromo}
+              onApply={(discount, promo) => { setPromoDiscount(discount); setAppliedPromo(promo); }}
+              onRemove={() => { setPromoDiscount(0); setAppliedPromo(null); }}
+            />
+          </div>
+
           <div style={{ borderTop: '2px solid #244A44', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3, color: '#6A8A82' }}><span>Subtotal</span><span>{formatKES(total)}</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3, color: '#6A8A82' }}><span>Delivery</span><span>{deliveryFee ? formatKES(deliveryFee) : 'Free'}</span></div>
+            {promoDiscount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3, color: '#39FF88' }}><span>Promo ({appliedPromo?.code})</span><span>−{formatKES(promoDiscount)}</span></div>}
             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 16, color: '#244A44', borderTop: '1px solid #244A44', paddingTop: 6, marginTop: 6 }}><span>Total</span><span style={{ fontFamily: "'Share Tech Mono',monospace" }}>{formatKES(grandTotal)}</span></div>
           </div>
 
