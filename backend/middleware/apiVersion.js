@@ -16,7 +16,7 @@
 const API_VERSION = '1';
 const API_VERSION_HEADER = 'API-Version';
 const DEPRECATION_HEADER = 'Deprecation';
-const SUNSET_HEADER = 'Sunset';
+const _SUNSET_HEADER = 'Sunset';
 
 // Paths that are NOT versioned (infrastructure endpoints)
 const UNVERSIONED_PATHS = [

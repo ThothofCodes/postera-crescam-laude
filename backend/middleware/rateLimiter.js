@@ -12,18 +12,18 @@ const jwt = require('jsonwebtoken');
 // DEPT   = DEPT_HEAD_OWNER, admin
 // ADMIN  = SUPER_ADMIN
 const TIERS = {
-  PUBLIC: { max: 200,  label: 'public'  },  // Anonymous browsers, webhooks
-  STAFF:  { max: 200, label: 'staff'   },  // Regular staff — higher quota for dashboard usage
-  DEPT:   { max: 400, label: 'dept'    },  // Dept heads — bulk operations, reporting
-  ADMIN:  { max: 800, label: 'admin'   },  // Super admins — full access, seeding, bulk imports
+  PUBLIC: { max: 200, label: 'public' }, // Anonymous browsers, webhooks
+  STAFF: { max: 200, label: 'staff' }, // Regular staff — higher quota for dashboard usage
+  DEPT: { max: 400, label: 'dept' }, // Dept heads — bulk operations, reporting
+  ADMIN: { max: 800, label: 'admin' }, // Super admins — full access, seeding, bulk imports
 };
 
 // Sensitive write operations get tighter limits regardless of role
 const WRITE_TIERS = {
-  PUBLIC: { max: 50,   label: 'public-write'  },
-  STAFF:  { max: 30,  label: 'staff-write'   },
-  DEPT:   { max: 60,  label: 'dept-write'    },
-  ADMIN:  { max: 100, label: 'admin-write'   },
+  PUBLIC: { max: 50, label: 'public-write' },
+  STAFF: { max: 30, label: 'staff-write' },
+  DEPT: { max: 60, label: 'dept-write' },
+  ADMIN: { max: 100, label: 'admin-write' },
 };
 
 // Auth endpoints (login, register, password reset) — very strict
@@ -58,7 +58,7 @@ function extractUserFromRequest(req) {
   if (!token) {
     const authHeader = req.headers.authorization;
     if (authHeader?.startsWith('Bearer ')) {
-      token = authHeader.split(' ')[1];
+      [, token] = authHeader.split(' ');
     }
   }
   if (!token) return null;
@@ -75,7 +75,7 @@ function extractUserFromRequest(req) {
  */
 function getTier(decoded) {
   if (!decoded) return TIERS.PUBLIC;
-  const role = decoded.role;
+  const { role } = decoded;
   if (role === 'SUPER_ADMIN') return TIERS.ADMIN;
   if (['DEPT_HEAD_OWNER', 'admin'].includes(role)) return TIERS.DEPT;
   if (['STAFF', 'staff'].includes(role)) return TIERS.STAFF;
@@ -87,7 +87,7 @@ function getTier(decoded) {
  */
 function getWriteTier(decoded) {
   if (!decoded) return WRITE_TIERS.PUBLIC;
-  const role = decoded.role;
+  const { role } = decoded;
   if (role === 'SUPER_ADMIN') return WRITE_TIERS.ADMIN;
   if (['DEPT_HEAD_OWNER', 'admin'].includes(role)) return WRITE_TIERS.DEPT;
   if (['STAFF', 'staff'].includes(role)) return WRITE_TIERS.STAFF;
@@ -115,7 +115,7 @@ function ipKey(req) {
 
 // ── Response header formatter ──────────────────────────────────────────────
 
-function addRateLimitHeaders(req, res, info) {
+function _addRateLimitHeaders(req, res, info) {
   res.set('RateLimit-Policy', info.label || 'global');
 }
 

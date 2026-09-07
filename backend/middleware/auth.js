@@ -32,7 +32,7 @@ function parseCookies(cookieHeader) {
 function extractToken(req) {
   // 1. Try httpOnly cookie first (browser clients)
   const cookies = parseCookies(req.headers.cookie);
-  const cookieToken = cookies['pcl_token'];
+  const cookieToken = cookies.pcl_token;
   if (cookieToken) return cookieToken;
 
   // 2. Fallback to Authorization header (API clients, mobile, Postman)

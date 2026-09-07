@@ -1,7 +1,6 @@
 // Copyright (c) 2026 Thoth of Codes. Licensed under the MIT License.
 // MinIO Object Storage — replaces Cloudinary with self-hosted S3-compatible storage.
 const Minio = require('minio');
-const path = require('path');
 
 // ── MinIO Configuration ────────────────────────────────────────────────────
 const MINIO_ENDPOINT = process.env.MINIO_ENDPOINT || 'localhost';

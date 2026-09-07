@@ -5,7 +5,7 @@
 const { sendEmail } = require('./mailer');
 
 const COMPANY_NAME = 'Postera Crescam Laude';
-const COMPANY_EMAIL = process.env.EMAIL_USER || 'info@pclsolutions.co.ke';
+const _COMPANY_EMAIL = process.env.EMAIL_USER || 'info@pclsolutions.co.ke';
 
 /**
  * Send an email notification (free — uses SMTP).
@@ -52,7 +52,7 @@ const sendWhatsApp = async (to, message) => {
  * @param {string} message   - notification body
  * @param {'sms'|'whatsapp'|'both'} channel - ignored, always sends email
  */
-const notifyCustomer = async (to, message, channel = 'sms') => {
+const notifyCustomer = async (to, message, _channel = 'sms') => {
   await sendSMS(to, message);
 };
 

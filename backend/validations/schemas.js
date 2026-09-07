@@ -6,13 +6,14 @@ const { z } = require('zod');
 const mongoId = z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid ID format');
 const email = z.string().email('Invalid email address').max(200);
 // Optional email that coerces empty string / whitespace-only to undefined
-const optionalEmail = z.string().trim().transform(v => v || undefined).pipe(z.string().email('Invalid email address').max(200).optional());
+const optionalEmail = z.string().trim().transform((v) => v || undefined).pipe(z.string().email('Invalid email address').max(200).optional());
 const phone = z.string().regex(/^\+?[0-9]{9,15}$/, 'Invalid phone number');
 const name = z.string().min(2, 'Name must be at least 2 characters').max(100);
 const slug = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Invalid slug format').max(96);
 const password = z.string().min(8, 'Password must be at least 8 characters').max(128);
 const page = z.coerce.number().int().min(1).default(1);
-const limit = z.coerce.number().int().min(1).max(100).default(20);
+const limit = z.coerce.number().int().min(1).max(100)
+  .default(20);
 
 // ── Auth ────────────────────────────────────────────────────────────────────
 const loginSchema = z.object({
@@ -72,19 +73,20 @@ const createProductSchema = z.object({
 const updateProductSchema = createProductSchema.partial();
 
 const productsQuerySchema = z.object({
-  page, limit,
+  page,
+  limit,
   sort: z.enum(['-createdAt', 'price', '-price', '-soldCount', 'name']).optional(),
   category: z.preprocess(
-    (v) => (v === '' || v === undefined || v === null) ? undefined : v,
-    productCategory.optional()
+    (v) => ((v === '' || v === undefined || v === null) ? undefined : v),
+    productCategory.optional(),
   ),
   search: z.preprocess(
-    (v) => (v === '' || v === undefined || v === null) ? undefined : v,
-    z.string().max(100).optional()
+    (v) => ((v === '' || v === undefined || v === null) ? undefined : v),
+    z.string().max(100).optional(),
   ),
   featured: z.preprocess(
-    (v) => (v === '' || v === undefined || v === null) ? undefined : v,
-    z.enum(['true', 'false']).optional()
+    (v) => ((v === '' || v === undefined || v === null) ? undefined : v),
+    z.enum(['true', 'false']).optional(),
   ),
 });
 
@@ -119,7 +121,8 @@ const recordPaymentSchema = z.object({
 });
 
 const ordersQuerySchema = z.object({
-  page, limit,
+  page,
+  limit,
   status: z.enum(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled']).optional(),
   paymentStatus: z.enum(['unpaid', 'paid', 'refunded']).optional(),
 });
@@ -144,7 +147,8 @@ const updateClientSchema = z.object({
 });
 
 const clientsQuerySchema = z.object({
-  page, limit,
+  page,
+  limit,
   search: z.string().max(100).optional(),
   clientType: clientType.optional(),
 });
@@ -197,7 +201,8 @@ const createInvoiceSchema = z.object({
 });
 
 const invoicesQuerySchema = z.object({
-  page, limit,
+  page,
+  limit,
   status: z.enum(['DRAFT', 'SENT', 'PAYMENT_SENT', 'PARTIAL', 'PAID', 'CANCELLED']).optional(),
   clientId: mongoId.optional(),
 });
@@ -271,7 +276,8 @@ const createMeetingSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(1000).optional(),
   scheduledAt: z.string().or(z.date()).optional(),
-  duration: z.coerce.number().int().min(1).max(480).optional(),
+  duration: z.coerce.number().int().min(1).max(480)
+    .optional(),
   department: z.string().max(50).optional(),
   participants: z.array(z.string().email()).max(50).optional(),
 });
@@ -306,35 +312,63 @@ const paginationQuery = z.object({ page, limit });
 
 module.exports = {
   // Shared
-  mongoId, email, phone, name, slug, password, page, limit, paginationQuery,
+  mongoId,
+  email,
+  phone,
+  name,
+  slug,
+  password,
+  page,
+  limit,
+  paginationQuery,
   // Auth
-  loginSchema, registerSchema, changeFirstPasswordSchema, verifyTokenSchema, setPasswordSchema,
+  loginSchema,
+  registerSchema,
+  changeFirstPasswordSchema,
+  verifyTokenSchema,
+  setPasswordSchema,
   // Products
-  createProductSchema, updateProductSchema, productsQuerySchema,
+  createProductSchema,
+  updateProductSchema,
+  productsQuerySchema,
   // Orders
-  createOrderSchema, updateOrderStatusSchema, recordPaymentSchema, ordersQuerySchema,
+  createOrderSchema,
+  updateOrderStatusSchema,
+  recordPaymentSchema,
+  ordersQuerySchema,
   // Clients
-  createClientSchema, updateClientSchema, clientsQuerySchema,
+  createClientSchema,
+  updateClientSchema,
+  clientsQuerySchema,
   // Services
-  createServiceSchema, updateServiceSchema,
+  createServiceSchema,
+  updateServiceSchema,
   // Tickets
-  createTicketSchema, updateTicketStatusSchema, addTicketReplySchema,
+  createTicketSchema,
+  updateTicketStatusSchema,
+  addTicketReplySchema,
   // Billing
-  createInvoiceSchema, invoicesQuerySchema,
+  createInvoiceSchema,
+  invoicesQuerySchema,
   // Bookings
   createBookingSchema,
   // Consultations
   createConsultationSchema,
   // Departments
-  createDepartmentSchema, updateDepartmentSchema, setMonthlyTargetSchema,
+  createDepartmentSchema,
+  updateDepartmentSchema,
+  setMonthlyTargetSchema,
   // Inventory
-  createInventorySchema, updateInventorySchema,
+  createInventorySchema,
+  updateInventorySchema,
   // CRM
-  createCRMClientSchema, updateCRMClientSchema,
+  createCRMClientSchema,
+  updateCRMClientSchema,
   // Meetings
   createMeetingSchema,
   // Revenue
   createRevenueSchema,
   // Calculator
-  calculatorSchema, pricingRuleSchema,
+  calculatorSchema,
+  pricingRuleSchema,
 };

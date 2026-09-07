@@ -1,11 +1,13 @@
 // Copyright (c) 2026 Thoth of Codes. Licensed under the MIT License.
 const router = require('express').Router();
-const ctrl = require('../controllers/crmController');
-const { protect, staffGuard, deptHeadGuard, superAdminGuard } = require('../middleware/auth');
-const { validate } = require('../middleware/validate');
-const { createCRMClientSchema, updateCRMClientSchema, mongoId } = require('../validations/schemas');
 const { z } = require('zod');
 const rateLimit = require('express-rate-limit');
+const ctrl = require('../controllers/crmController');
+const {
+  protect, staffGuard, deptHeadGuard, superAdminGuard,
+} = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
+const { createCRMClientSchema, updateCRMClientSchema, mongoId } = require('../validations/schemas');
 
 // Strict rate limiting for OTP endpoints to prevent brute-force
 const otpLimiter = rateLimit({

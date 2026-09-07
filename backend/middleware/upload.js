@@ -3,8 +3,9 @@
 // Upload middleware — multer memoryStorage + MinIO streaming.
 // Files are buffered in memory, then streamed to MinIO on demand.
 const multer = require('multer');
+// eslint-disable-next-line import/no-unresolved
 const { v4: uuidv4 } = require('uuid');
-const { uploadBuffer, fileUrl, MINIO_BUCKET } = require('../config/cloudinary');
+const { uploadBuffer, MINIO_BUCKET } = require('../config/cloudinary');
 
 // Memory storage — no disk I/O, compatible with MinIO streaming.
 const upload = multer({
@@ -51,9 +52,7 @@ async function uploadBufferToMinio(buffer, folder = 'products', originalName = '
 async function uploadProductImages(files = [], folder = 'products') {
   if (!files.length) return [];
   const results = await Promise.all(
-    files.map((f) => uploadBufferToMinio(
-      f.buffer, folder, f.originalname, f.mimetype,
-    )),
+    files.map((f) => uploadBufferToMinio(f.buffer, folder, f.originalname, f.mimetype)),
   );
   return results.map((r) => r.url);
 }

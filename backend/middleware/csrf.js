@@ -25,22 +25,22 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 // Paths exempt from CSRF (webhooks, callbacks from external services)
 const EXEMPT_PATHS = [
-  '/auth/login',                  // Pre-authentication — no session to hijack
-  '/auth/register',               // Pre-authentication — admin-only, rate-limited
-  '/auth/csrf-token',             // Token fetch endpoint (GET only, but exempt anyway)
+  '/auth/login', // Pre-authentication — no session to hijack
+  '/auth/register', // Pre-authentication — admin-only, rate-limited
+  '/auth/csrf-token', // Token fetch endpoint (GET only, but exempt anyway)
   '/payments/mpesa/callback',
   '/billing/mpesa-callback',
   '/webhook',
   '/ussd',
   '/chat/callback',
   '/monetization/ads/impression', // Public tracking — anonymous users
-  '/monetization/ads/click',       // Public tracking — anonymous users
+  '/monetization/ads/click', // Public tracking — anonymous users
   '/monetization/promos/validate', // Pre-checkout validation — may be anonymous
-  '/analytics/events',             // Frontend event tracking — no auth/CSRF
-  '/errors',                       // Frontend error ingestion — no auth/CSRF
-  '/orders/pay/',                  // Public STK push retry — checkout is unauthenticated
-  '/orders/retry-payment/',        // Public STK push retry — checkout is unauthenticated
-  '/orders/switch-to-cash/',       // Public payment switch — checkout is unauthenticated
+  '/analytics/events', // Frontend event tracking — no auth/CSRF
+  '/errors', // Frontend error ingestion — no auth/CSRF
+  '/orders/pay/', // Public STK push retry — checkout is unauthenticated
+  '/orders/retry-payment/', // Public STK push retry — checkout is unauthenticated
+  '/orders/switch-to-cash/', // Public payment switch — checkout is unauthenticated
 ];
 
 /**

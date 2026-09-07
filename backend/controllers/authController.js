@@ -34,9 +34,9 @@ const hashFingerprint = (fp) => crypto.createHash('sha256').update(fp).digest('h
 const isProduction = process.env.NODE_ENV === 'production';
 
 const JWT_COOKIE_OPTIONS = {
-  httpOnly: true,        // Not accessible via JavaScript (XSS prevention)
-  secure: isProduction,  // HTTPS only in production
-  sameSite: 'lax',       // CSRF protection — sent on top-level navigations
+  httpOnly: true, // Not accessible via JavaScript (XSS prevention)
+  secure: isProduction, // HTTPS only in production
+  sameSite: 'lax', // CSRF protection — sent on top-level navigations
   path: '/',
   maxAge: 8 * 60 * 60 * 1000, // 8 hours (matches JWT_EXPIRE)
 };
@@ -439,7 +439,7 @@ exports.changeFirstPassword = async (req, res, next) => {
 exports.getMe = async (req, res, next) => {
   try {
     // protect middleware already fetched and populated the user — no duplicate query needed
-    const { password, ...user } = req.user.toObject();
+    const { password: _password, ...user } = req.user.toObject();
     res.json(user);
   } catch (err) { next(err); }
 };

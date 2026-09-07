@@ -14,9 +14,9 @@
 const axios = require('axios');
 
 // ── State ──────────────────────────────────────────────────────────────────
-let cachedUrl = null;          // The raw ngrok tunnel URL (no path)
+let cachedUrl = null; // The raw ngrok tunnel URL (no path)
 let lastChecked = 0;
-let manualOverride = null;     // Admin-set override URL
+let manualOverride = null; // Admin-set override URL
 const POLL_INTERVAL_MS = 30_000; // Re-check every 30 seconds
 const NGROK_API = 'http://127.0.0.1:4040/api/tunnels';
 

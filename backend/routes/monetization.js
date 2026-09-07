@@ -2,11 +2,13 @@
 // Monetization routes — ad campaigns, promo codes, platform fees, and unified dashboard.
 
 const router = require('express').Router();
+const { z } = require('zod');
 const ctrl = require('../controllers/monetizationController');
-const { protect, staffGuard, deptHeadGuard, superAdminGuard } = require('../middleware/auth');
+const {
+  protect, staffGuard, deptHeadGuard, superAdminGuard,
+} = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { mongoId } = require('../validations/schemas');
-const { z } = require('zod');
 
 // ── Zod schemas ────────────────────────────────────────────────────────────
 

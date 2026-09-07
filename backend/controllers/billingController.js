@@ -10,7 +10,9 @@ const { invalidateMultiple } = require('../middleware/cache');
 
 exports.createInvoice = async (req, res, next) => {
   try {
-    const { clientId, lineItems, dueDate, notes, taxRate } = req.body;
+    const {
+      clientId, lineItems, dueDate, notes, taxRate,
+    } = req.body;
     const items = lineItems.map((i) => ({
       description: i.description.slice(0, 200),
       qty: Math.max(1, i.qty),
@@ -42,12 +44,15 @@ exports.createInvoice = async (req, res, next) => {
 
 exports.getInvoices = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, status, clientId } = req.query;
+    const {
+      page = 1, limit = 20, status, clientId,
+    } = req.query;
     const filter = req.user.role === 'SUPER_ADMIN' ? {} : { departmentSlug: req.user.departmentSlug };
     if (status) filter.status = status;
     if (clientId) filter.client = clientId;
     const [invoices, total] = await Promise.all([
-      Invoice.find(filter).populate('client', 'fullName phone').sort('-createdAt').skip((page - 1) * limit).limit(limit),
+      Invoice.find(filter).populate('client', 'fullName phone').sort('-createdAt').skip((page - 1) * limit)
+        .limit(limit),
       Invoice.countDocuments(filter),
     ]);
     res.json({ invoices, total, page });
@@ -112,17 +117,24 @@ exports.mpesaCallback = async (req, res) => {
       try { const pts = Math.floor((invoice.amountPaid || 0) / 100); if (pts > 0) await require('../models/CRMClient').findByIdAndUpdate(invoice.clientId, { $inc: { loyaltyPoints: pts } }); } catch (_) {}
       generateReceipt(invoice).then((url) => { if (url) require('../models/Invoice').findByIdAndUpdate(invoice._id, { receiptUrl: url }).catch(() => {}); }).catch(() => {});
       // Record platform fee for monetization tracking
-      const { recordFee } = require('../controllers/monetizationController');
+      const { recordFee } = require('./monetizationController');
       recordFee({
-        sourceType: 'invoice', sourceId: invoice._id, sourceModel: 'Invoice',
-        grossAmount: paid, department: invoice.department, category: 'billing',
-        paymentMethod: 'mpesa', paymentReference: invoice.mpesaRef,
+        sourceType: 'invoice',
+        sourceId: invoice._id,
+        sourceModel: 'Invoice',
+        grossAmount: paid,
+        department: invoice.department,
+        category: 'billing',
+        paymentMethod: 'mpesa',
+        paymentReference: invoice.mpesaRef,
         description: `Invoice ${invoice.invoiceId}`,
       }).catch(() => {});
     }
     try {
       const { emitPaymentResult } = require('../socket');
-      emitPaymentResult(CheckoutRequestID, { success: invoice.status === 'PAID', invoiceId: invoice._id, mpesaRef: invoice.mpesaRef, amount: invoice.amountPaid, paidAt: invoice.paidAt });
+      emitPaymentResult(CheckoutRequestID, {
+        success: invoice.status === 'PAID', invoiceId: invoice._id, mpesaRef: invoice.mpesaRef, amount: invoice.amountPaid, paidAt: invoice.paidAt,
+      });
     } catch (_) {}
     const client = await require('../models/CRMClient').findById(invoice.client);
     if (client) { const notifyTo = client.email || client.phone; if (notifyTo) sendSMS(notifyTo, `Payment of KES ${paid} received for invoice ${invoice.invoiceId}. Ref: ${invoice.mpesaRef}. Balance: KES ${invoice.balance}. Thank you!`); }

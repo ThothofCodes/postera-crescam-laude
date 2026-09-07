@@ -116,8 +116,8 @@ exports.getErrors = async (req, res, next) => {
     if (name) filter.name = name;
     if (fingerprint) filter.fingerprint = fingerprint;
 
-    const skip = (Math.max(1, parseInt(page)) - 1) * Math.min(parseInt(limit) || 50, 200);
-    const take = Math.min(parseInt(limit) || 50, 200);
+    const skip = (Math.max(1, parseInt(page, 10)) - 1) * Math.min(parseInt(limit, 10) || 50, 200);
+    const take = Math.min(parseInt(limit, 10) || 50, 200);
 
     const [errors, total] = await Promise.all([
       ErrorLog.find(filter)
@@ -132,7 +132,7 @@ exports.getErrors = async (req, res, next) => {
     res.json({
       errors,
       pagination: {
-        page: parseInt(page) || 1,
+        page: parseInt(page, 10) || 1,
         limit: take,
         total,
         pages: Math.ceil(total / take),
@@ -146,7 +146,7 @@ exports.getErrors = async (req, res, next) => {
 exports.getErrorStats = async (req, res, next) => {
   try {
     const { days = 7 } = req.query;
-    const since = new Date(Date.now() - parseInt(days) * 24 * 60 * 60 * 1000);
+    const since = new Date(Date.now() - parseInt(days, 10) * 24 * 60 * 60 * 1000);
 
     const [bySource, byStatus, topErrors, recentCount, openCount] = await Promise.all([
       // By source
@@ -226,7 +226,7 @@ exports.clearErrors = async (req, res, next) => {
     const { status = 'resolved', olderThanDays } = req.body;
     const filter = { status };
     if (olderThanDays) {
-      filter.createdAt = { $lt: new Date(Date.now() - parseInt(olderThanDays) * 24 * 60 * 60 * 1000) };
+      filter.createdAt = { $lt: new Date(Date.now() - parseInt(olderThanDays, 10) * 24 * 60 * 60 * 1000) };
     }
     const result = await ErrorLog.deleteMany(filter);
     res.json({ deleted: result.deletedCount });

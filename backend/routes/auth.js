@@ -1,11 +1,15 @@
 // Copyright (c) 2026 Thoth of Codes. Licensed under the MIT License.
 const router = require('express').Router();
-const { login, register, getMe, verifyToken, setPassword, changeFirstPassword, logout } = require('../controllers/authController');
+const {
+  login, register, getMe, verifyToken, setPassword, changeFirstPassword, logout,
+} = require('../controllers/authController');
 const { protect, superAdminGuard } = require('../middleware/auth');
 const { setCsrfCookie } = require('../middleware/csrf');
 const { validate } = require('../middleware/validate');
 const { bruteForceProtection, getAllStatus } = require('../middleware/bruteForce');
-const { loginSchema, registerSchema, changeFirstPasswordSchema, verifyTokenSchema, setPasswordSchema } = require('../validations/schemas');
+const {
+  loginSchema, registerSchema, changeFirstPasswordSchema, verifyTokenSchema, setPasswordSchema,
+} = require('../validations/schemas');
 
 router.get('/csrf-token', (req, res) => {
   const token = setCsrfCookie(res);

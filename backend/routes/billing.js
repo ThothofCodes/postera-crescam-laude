@@ -1,11 +1,13 @@
 // Copyright (c) 2026 Thoth of Codes. Licensed under the MIT License.
 const router = require('express').Router();
+const { z } = require('zod');
 const ctrl = require('../controllers/billingController');
-const { protect, staffGuard, deptHeadGuard, superAdminGuard } = require('../middleware/auth');
+const {
+  protect, staffGuard, deptHeadGuard, superAdminGuard,
+} = require('../middleware/auth');
 const { webhookSignatureMiddleware } = require('../middleware/webhookSignature');
 const { validate } = require('../middleware/validate');
 const { createInvoiceSchema, invoicesQuerySchema, mongoId } = require('../validations/schemas');
-const { z } = require('zod');
 
 router.post('/mpesa-callback', webhookSignatureMiddleware, ctrl.mpesaCallback);
 

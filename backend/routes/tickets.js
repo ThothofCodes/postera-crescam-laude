@@ -1,13 +1,17 @@
 // Copyright (c) 2026 Thoth of Codes. Licensed under the MIT License.
 const router = require('express').Router();
+const { z } = require('zod');
 const ctrl = require('../controllers/ticketController');
 const { notifyCustomer } = require('../config/africastalking');
 const User = require('../models/User');
 const Ticket = require('../models/Ticket');
-const { protect, staffGuard, deptHeadGuard, superAdminGuard } = require('../middleware/auth');
+const {
+  protect, staffGuard, deptHeadGuard, superAdminGuard,
+} = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
-const { createTicketSchema, updateTicketStatusSchema, addTicketReplySchema, mongoId } = require('../validations/schemas');
-const { z } = require('zod');
+const {
+  createTicketSchema, updateTicketStatusSchema, addTicketReplySchema, mongoId,
+} = require('../validations/schemas');
 
 router.use(protect, staffGuard);
 
@@ -39,8 +43,8 @@ router.post('/:id/notify', validate(z.object({ id: mongoId }), 'params'), async 
     if (!phone && ticket.thread?.length) {
       const contactEntry = ticket.thread.find((t) => t.authorRole === 'CLIENT');
       if (contactEntry?.message) {
-        const [phoneMatch] = contactEntry.message.match(/\+?\d{10,15}/);
-        if (phoneMatch) phone = phoneMatch[0];
+        const [, phoneMatch] = contactEntry.message.match(/\+?\d{10,15}/);
+        if (phoneMatch) phone = phoneMatch;
       }
     }
     if (!phone) return res.status(404).json({ message: 'Customer contact not found' });

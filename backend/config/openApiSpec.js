@@ -199,90 +199,178 @@ function buildPaths() {
   // Route definitions — each maps to a Zod request schema
   const routes = [
     // Auth
-    { method: 'post', path: '/auth/login', tag: 'Auth', summary: 'Login', schema: 'LoginRequest', auth: false },
-    { method: 'post', path: '/auth/register', tag: 'Auth', summary: 'Register staff', schema: 'RegisterRequest', auth: true },
-    { method: 'get', path: '/auth/csrf-token', tag: 'Auth', summary: 'Get CSRF token', auth: false },
-    { method: 'post', path: '/auth/logout', tag: 'Auth', summary: 'Logout', auth: true },
-    { method: 'get', path: '/auth/me', tag: 'Auth', summary: 'Get current user', auth: true },
+    {
+      method: 'post', path: '/auth/login', tag: 'Auth', summary: 'Login', schema: 'LoginRequest', auth: false,
+    },
+    {
+      method: 'post', path: '/auth/register', tag: 'Auth', summary: 'Register staff', schema: 'RegisterRequest', auth: true,
+    },
+    {
+      method: 'get', path: '/auth/csrf-token', tag: 'Auth', summary: 'Get CSRF token', auth: false,
+    },
+    {
+      method: 'post', path: '/auth/logout', tag: 'Auth', summary: 'Logout', auth: true,
+    },
+    {
+      method: 'get', path: '/auth/me', tag: 'Auth', summary: 'Get current user', auth: true,
+    },
 
     // Products
-    { method: 'get', path: '/products', tag: 'Products', summary: 'List products', query: 'ProductsQuery', auth: false },
-    { method: 'post', path: '/products', tag: 'Products', summary: 'Create product', schema: 'CreateProductRequest', auth: true },
+    {
+      method: 'get', path: '/products', tag: 'Products', summary: 'List products', query: 'ProductsQuery', auth: false,
+    },
+    {
+      method: 'post', path: '/products', tag: 'Products', summary: 'Create product', schema: 'CreateProductRequest', auth: true,
+    },
 
     // Orders
-    { method: 'get', path: '/orders', tag: 'Orders', summary: 'List orders', query: 'OrdersQuery', auth: true },
-    { method: 'post', path: '/orders', tag: 'Orders', summary: 'Create order', schema: 'CreateOrderRequest', auth: true },
+    {
+      method: 'get', path: '/orders', tag: 'Orders', summary: 'List orders', query: 'OrdersQuery', auth: true,
+    },
+    {
+      method: 'post', path: '/orders', tag: 'Orders', summary: 'Create order', schema: 'CreateOrderRequest', auth: true,
+    },
 
     // Clients
-    { method: 'get', path: '/clients', tag: 'Clients', summary: 'List clients', query: 'ClientsQuery', auth: true },
-    { method: 'post', path: '/clients', tag: 'Clients', summary: 'Create client', schema: 'CreateClientRequest', auth: true },
+    {
+      method: 'get', path: '/clients', tag: 'Clients', summary: 'List clients', query: 'ClientsQuery', auth: true,
+    },
+    {
+      method: 'post', path: '/clients', tag: 'Clients', summary: 'Create client', schema: 'CreateClientRequest', auth: true,
+    },
 
     // Services
-    { method: 'get', path: '/services', tag: 'Services', summary: 'List services', auth: false },
-    { method: 'post', path: '/services', tag: 'Services', summary: 'Create service', schema: 'CreateServiceRequest', auth: true },
+    {
+      method: 'get', path: '/services', tag: 'Services', summary: 'List services', auth: false,
+    },
+    {
+      method: 'post', path: '/services', tag: 'Services', summary: 'Create service', schema: 'CreateServiceRequest', auth: true,
+    },
 
     // Tickets
-    { method: 'get', path: '/tickets', tag: 'Tickets', summary: 'List tickets', auth: true },
-    { method: 'post', path: '/tickets', tag: 'Tickets', summary: 'Create ticket', schema: 'CreateTicketRequest', auth: true },
+    {
+      method: 'get', path: '/tickets', tag: 'Tickets', summary: 'List tickets', auth: true,
+    },
+    {
+      method: 'post', path: '/tickets', tag: 'Tickets', summary: 'Create ticket', schema: 'CreateTicketRequest', auth: true,
+    },
 
     // Billing
-    { method: 'get', path: '/billing', tag: 'Billing', summary: 'List invoices', query: 'InvoicesQuery', auth: true },
-    { method: 'post', path: '/billing', tag: 'Billing', summary: 'Create invoice', schema: 'CreateInvoiceRequest', auth: true },
+    {
+      method: 'get', path: '/billing', tag: 'Billing', summary: 'List invoices', query: 'InvoicesQuery', auth: true,
+    },
+    {
+      method: 'post', path: '/billing', tag: 'Billing', summary: 'Create invoice', schema: 'CreateInvoiceRequest', auth: true,
+    },
 
     // Bookings
-    { method: 'get', path: '/bookings', tag: 'Bookings', summary: 'List bookings', auth: true },
-    { method: 'post', path: '/bookings', tag: 'Bookings', summary: 'Create booking', schema: 'CreateBookingRequest', auth: true },
+    {
+      method: 'get', path: '/bookings', tag: 'Bookings', summary: 'List bookings', auth: true,
+    },
+    {
+      method: 'post', path: '/bookings', tag: 'Bookings', summary: 'Create booking', schema: 'CreateBookingRequest', auth: true,
+    },
 
     // Consultations
-    { method: 'get', path: '/consultations', tag: 'Consultations', summary: 'List consultations', auth: true },
-    { method: 'post', path: '/consultations', tag: 'Consultations', summary: 'Create consultation', schema: 'CreateConsultationRequest', auth: true },
+    {
+      method: 'get', path: '/consultations', tag: 'Consultations', summary: 'List consultations', auth: true,
+    },
+    {
+      method: 'post', path: '/consultations', tag: 'Consultations', summary: 'Create consultation', schema: 'CreateConsultationRequest', auth: true,
+    },
 
     // Departments
-    { method: 'get', path: '/departments', tag: 'Departments', summary: 'List departments', auth: false },
-    { method: 'post', path: '/departments', tag: 'Departments', summary: 'Create department', schema: 'CreateDepartmentRequest', auth: true },
+    {
+      method: 'get', path: '/departments', tag: 'Departments', summary: 'List departments', auth: false,
+    },
+    {
+      method: 'post', path: '/departments', tag: 'Departments', summary: 'Create department', schema: 'CreateDepartmentRequest', auth: true,
+    },
 
     // Inventory
-    { method: 'get', path: '/inventory', tag: 'Inventory', summary: 'List inventory', auth: true },
-    { method: 'post', path: '/inventory', tag: 'Inventory', summary: 'Create inventory item', schema: 'CreateInventoryRequest', auth: true },
+    {
+      method: 'get', path: '/inventory', tag: 'Inventory', summary: 'List inventory', auth: true,
+    },
+    {
+      method: 'post', path: '/inventory', tag: 'Inventory', summary: 'Create inventory item', schema: 'CreateInventoryRequest', auth: true,
+    },
 
     // CRM
-    { method: 'get', path: '/crm', tag: 'CRM', summary: 'List CRM clients', auth: true },
-    { method: 'post', path: '/crm', tag: 'CRM', summary: 'Create CRM client', schema: 'CreateCRMClientRequest', auth: true },
+    {
+      method: 'get', path: '/crm', tag: 'CRM', summary: 'List CRM clients', auth: true,
+    },
+    {
+      method: 'post', path: '/crm', tag: 'CRM', summary: 'Create CRM client', schema: 'CreateCRMClientRequest', auth: true,
+    },
 
     // Revenue
-    { method: 'get', path: '/revenue', tag: 'Revenue', summary: 'List revenue entries', auth: true },
-    { method: 'post', path: '/revenue', tag: 'Revenue', summary: 'Create revenue entry', schema: 'CreateRevenueRequest', auth: true },
+    {
+      method: 'get', path: '/revenue', tag: 'Revenue', summary: 'List revenue entries', auth: true,
+    },
+    {
+      method: 'post', path: '/revenue', tag: 'Revenue', summary: 'Create revenue entry', schema: 'CreateRevenueRequest', auth: true,
+    },
 
     // Calculator
-    { method: 'post', path: '/calculator/estimate', tag: 'Calculator', summary: 'Get price estimate', schema: 'CalculatorEstimate', auth: false },
+    {
+      method: 'post', path: '/calculator/estimate', tag: 'Calculator', summary: 'Get price estimate', schema: 'CalculatorEstimate', auth: false,
+    },
 
     // Monetization
-    { method: 'get', path: '/monetization/ads/active', tag: 'Monetization', summary: 'Get active ads', auth: false },
-    { method: 'post', path: '/monetization/promos/validate', tag: 'Monetization', summary: 'Validate promo code', auth: false },
+    {
+      method: 'get', path: '/monetization/ads/active', tag: 'Monetization', summary: 'Get active ads', auth: false,
+    },
+    {
+      method: 'post', path: '/monetization/promos/validate', tag: 'Monetization', summary: 'Validate promo code', auth: false,
+    },
 
     // Meetings
-    { method: 'get', path: '/meetings/rooms', tag: 'Meetings', summary: 'List meeting rooms', auth: true },
-    { method: 'post', path: '/meetings/rooms', tag: 'Meetings', summary: 'Create meeting room', schema: 'CreateMeetingRequest', auth: true },
+    {
+      method: 'get', path: '/meetings/rooms', tag: 'Meetings', summary: 'List meeting rooms', auth: true,
+    },
+    {
+      method: 'post', path: '/meetings/rooms', tag: 'Meetings', summary: 'Create meeting room', schema: 'CreateMeetingRequest', auth: true,
+    },
 
     // Tech Hub
-    { method: 'get', path: '/tech-hub/public/articles', tag: 'Tech Hub', summary: 'List published articles', auth: false },
+    {
+      method: 'get', path: '/tech-hub/public/articles', tag: 'Tech Hub', summary: 'List published articles', auth: false,
+    },
 
     // Help
-    { method: 'get', path: '/help/faq', tag: 'Help', summary: 'Get FAQ', auth: false },
-    { method: 'get', path: '/help/troubleshooting', tag: 'Help', summary: 'Get troubleshooting guides', auth: false },
-    { method: 'get', path: '/help/knowledge-base', tag: 'Help', summary: 'Get knowledge base', auth: false },
+    {
+      method: 'get', path: '/help/faq', tag: 'Help', summary: 'Get FAQ', auth: false,
+    },
+    {
+      method: 'get', path: '/help/troubleshooting', tag: 'Help', summary: 'Get troubleshooting guides', auth: false,
+    },
+    {
+      method: 'get', path: '/help/knowledge-base', tag: 'Help', summary: 'Get knowledge base', auth: false,
+    },
 
     // Analytics
-    { method: 'get', path: '/analytics/summary', tag: 'Analytics', summary: 'Get analytics summary', auth: true },
+    {
+      method: 'get', path: '/analytics/summary', tag: 'Analytics', summary: 'Get analytics summary', auth: true,
+    },
 
     // Admin
-    { method: 'get', path: '/admin/stats', tag: 'Admin', summary: 'Get dashboard stats', auth: true },
-    { method: 'get', path: '/admin/revenue', tag: 'Admin', summary: 'Get revenue chart data', auth: true },
+    {
+      method: 'get', path: '/admin/stats', tag: 'Admin', summary: 'Get dashboard stats', auth: true,
+    },
+    {
+      method: 'get', path: '/admin/revenue', tag: 'Admin', summary: 'Get revenue chart data', auth: true,
+    },
 
     // Health
-    { method: 'get', path: '/health', tag: 'System', summary: 'Health check', auth: false },
-    { method: 'get', path: '/ready', tag: 'System', summary: 'Readiness check', auth: false },
-    { method: 'get', path: '/versions', tag: 'System', summary: 'API version discovery', auth: false },
+    {
+      method: 'get', path: '/health', tag: 'System', summary: 'Health check', auth: false,
+    },
+    {
+      method: 'get', path: '/ready', tag: 'System', summary: 'Readiness check', auth: false,
+    },
+    {
+      method: 'get', path: '/versions', tag: 'System', summary: 'API version discovery', auth: false,
+    },
   ];
 
   const paths = {};
@@ -323,19 +411,19 @@ function buildPaths() {
 
     // Response
     operation.responses = {
-      '200': {
+      200: {
         description: 'Success',
         content: { 'application/json': { schema: { type: 'object' } } },
       },
-      '400': {
+      400: {
         description: 'Validation error',
         content: { 'application/json': { schema: { $ref: '#/components/schemas/ValidationError' } } },
       },
-      '401': {
+      401: {
         description: 'Unauthorized',
         content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } },
       },
-      '500': {
+      500: {
         description: 'Server error',
         content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } },
       },

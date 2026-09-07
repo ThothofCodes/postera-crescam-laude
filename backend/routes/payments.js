@@ -3,7 +3,9 @@ const router = require('express').Router();
 const { mpesaCallback } = require('../controllers/paymentController');
 const { webhookSignatureMiddleware } = require('../middleware/webhookSignature');
 const { protect } = require('../middleware/auth');
-const { getStatus, setManualOverride, forceRefresh, getCallbackUrl } = require('../utils/ngrokDetector');
+const {
+  getStatus, setManualOverride, forceRefresh, getCallbackUrl,
+} = require('../utils/ngrokDetector');
 
 // Webhook signature verification (Stripe-style HMAC)
 // Verifies the callback is authentic before processing

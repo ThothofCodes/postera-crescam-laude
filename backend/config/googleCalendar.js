@@ -3,7 +3,9 @@
 // ICS Calendar generation — stores .ics files in MinIO.
 // Generates .ics files that users can import into any calendar app
 // (Google Calendar, Apple Calendar, Outlook, etc.).
-const { uploadBuffer, deleteObject, fileUrl, MINIO_BUCKET } = require('./cloudinary');
+const {
+  uploadBuffer, deleteObject, fileUrl: _fileUrl, MINIO_BUCKET,
+} = require('./cloudinary');
 
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
 
@@ -62,9 +64,7 @@ async function generateICS(room) {
     ].join('\\r\\n');
 
     const objectName = `calendar/meeting-${room._id}.ics`;
-    const result = await uploadBuffer(
-      MINIO_BUCKET, objectName, Buffer.from(ics), 'text/calendar',
-    );
+    const result = await uploadBuffer(MINIO_BUCKET, objectName, Buffer.from(ics), 'text/calendar');
     console.log(`[ICS] Generated calendar file: ${objectName}`);
     return result.url;
   } catch (err) {
@@ -157,7 +157,7 @@ async function deleteCalendarEvent(eventId) {
   return true;
 }
 
-async function addAttendees(eventId, emails) {
+async function addAttendees(_eventId, _emails) {
   return true;
 }
 

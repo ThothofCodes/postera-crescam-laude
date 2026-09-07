@@ -1,11 +1,17 @@
 // Copyright (c) 2026 Thoth of Codes. Licensed under the MIT License.
 const router = require('express').Router();
-const { getTypes, getAvailability, getConsultations, getConsultation, createConsultation, confirmConsultation, completeConsultation, cancelConsultation, getStats } = require('../controllers/consultationController');
+const { z } = require('zod');
+const {
+  getTypes, getAvailability, getConsultations, getConsultation,
+  createConsultation, confirmConsultation, completeConsultation,
+  cancelConsultation, getStats,
+} = require('../controllers/consultationController');
 const AvailabilitySlot = require('../models/AvailabilitySlot');
-const { protect, staffGuard, deptHeadGuard, superAdminGuard, staffReadScope } = require('../middleware/auth');
+const {
+  protect, staffGuard, deptHeadGuard, superAdminGuard, staffReadScope,
+} = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { createConsultationSchema, mongoId } = require('../validations/schemas');
-const { z } = require('zod');
 
 router.get('/types', getTypes);
 router.get('/availability', getAvailability);

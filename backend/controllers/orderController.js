@@ -12,7 +12,9 @@ const logger = require('../utils/logger');
 
 exports.getOrders = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, status, paymentStatus } = req.query;
+    const {
+      page = 1, limit = 20, status, paymentStatus,
+    } = req.query;
     const query = {};
     if (status) query.status = status;
     if (paymentStatus) query.paymentStatus = paymentStatus;
@@ -20,7 +22,9 @@ exports.getOrders = async (req, res, next) => {
       Order.find(query).sort('-createdAt').skip((page - 1) * limit).limit(limit),
       Order.countDocuments(query),
     ]);
-    res.json({ orders, total, page, pages: Math.ceil(total / limit) });
+    res.json({
+      orders, total, page, pages: Math.ceil(total / limit),
+    });
   } catch (err) { next(err); }
 };
 
@@ -43,7 +47,9 @@ exports.getOrdersByPhone = async (req, res, next) => {
 
 exports.createOrder = async (req, res, next) => {
   try {
-    const { items, customer, deliveryType, deliveryFee = 0, notes, paymentMethod } = req.body;
+    const {
+      items, customer, deliveryType, deliveryFee = 0, notes, paymentMethod,
+    } = req.body;
     const phone = customer.phone.replace(/\D/g, '');
 
     // Business validation: check product availability and stock
@@ -51,7 +57,9 @@ exports.createOrder = async (req, res, next) => {
       const p = await Product.findById(product);
       if (!p || !p.isActive) throw Object.assign(new Error('Product unavailable'), { statusCode: 400 });
       if (!p.isDigital && p.stock < quantity) throw Object.assign(new Error(`Insufficient stock for ${p.name}`), { statusCode: 400 });
-      return { product: p._id, name: p.name, price: p.price, quantity, subtotal: p.price * quantity };
+      return {
+        product: p._id, name: p.name, price: p.price, quantity, subtotal: p.price * quantity,
+      };
     }));
 
     const subtotal = enriched.reduce((s, i) => s + i.subtotal, 0);
@@ -115,15 +123,25 @@ exports.recordOrderPayment = async (req, res, next) => {
     const order = await Order.findByIdAndUpdate(req.params.id, { paymentStatus: 'paid', paymentMethod, mpesaRef: safeRef }, { new: true });
     if (!order) return res.status(404).json({ message: 'Order not found' });
     await Revenue.create({
-      type: 'income', category: 'order', description: `Order ${order.orderNumber} — ${order.customer.name}`,
-      amount, paymentMethod, reference: safeRef, createdBy: req.user._id,
+      type: 'income',
+      category: 'order',
+      description: `Order ${order.orderNumber} — ${order.customer.name}`,
+      amount,
+      paymentMethod,
+      reference: safeRef,
+      createdBy: req.user._id,
     });
     // Record platform fee for monetization tracking
-    const { recordFee } = require('../controllers/monetizationController');
+    const { recordFee } = require('./monetizationController');
     recordFee({
-      sourceType: 'order', sourceId: order._id, sourceModel: 'Order',
-      grossAmount: amount, department: order.department, category: 'order',
-      paymentMethod, paymentReference: safeRef,
+      sourceType: 'order',
+      sourceId: order._id,
+      sourceModel: 'Order',
+      grossAmount: amount,
+      department: order.department,
+      category: 'order',
+      paymentMethod,
+      paymentReference: safeRef,
       description: `Order ${order.orderNumber}`,
     }).catch(() => {}); // Non-blocking
     await Promise.all(order.items.map(async ({ product, quantity }) => {
@@ -157,7 +175,9 @@ exports.sendStkPush = async (req, res, next) => {
     order.retryCount = (order.retryCount || 0) + 1;
     order.lastRetryAt = new Date();
     await order.save();
-    res.json({ success: true, message: `M-Pesa prompt sent to ${phone}`, checkoutRequestId: result.CheckoutRequestID, retryCount: order.retryCount });
+    res.json({
+      success: true, message: `M-Pesa prompt sent to ${phone}`, checkoutRequestId: result.CheckoutRequestID, retryCount: order.retryCount,
+    });
   } catch (err) { logger.error('sendStkPush error', { message: err.message }); next(err); }
 };
 
@@ -179,7 +199,9 @@ exports.publicRetryStkPush = async (req, res, next) => {
     order.retryCount = (order.retryCount || 0) + 1;
     order.lastRetryAt = new Date();
     await order.save();
-    res.json({ success: true, message: `M-Pesa prompt sent to ${phone}`, checkoutRequestId: result.CheckoutRequestID, retryCount: order.retryCount, orderNumber: order.orderNumber });
+    res.json({
+      success: true, message: `M-Pesa prompt sent to ${phone}`, checkoutRequestId: result.CheckoutRequestID, retryCount: order.retryCount, orderNumber: order.orderNumber,
+    });
   } catch (err) { logger.error('publicRetryStkPush error', { message: err.message }); next(err); }
 };
 
@@ -190,7 +212,13 @@ exports.getOrderStatus = async (req, res, next) => {
     const query = /^[0-9a-fA-F]{24}$/.test(identifier) ? { _id: identifier } : { orderNumber: identifier };
     const order = await Order.findOne(query).select('orderNumber paymentStatus paymentMethod total status');
     if (!order) return res.status(404).json({ message: 'Order not found' });
-    res.json({ orderNumber: order.orderNumber, paymentStatus: order.paymentStatus, paymentMethod: order.paymentMethod, total: order.total, status: order.status });
+    res.json({
+      orderNumber: order.orderNumber,
+      paymentStatus: order.paymentStatus,
+      paymentMethod: order.paymentMethod,
+      total: order.total,
+      status: order.status,
+    });
   } catch (err) { next(err); }
 };
 
@@ -213,6 +241,8 @@ exports.switchToCash = async (req, res, next) => {
     order.paymentMethod = 'cash';
     order.paymentStatus = 'unpaid';
     await order.save();
-    res.json({ success: true, message: 'Switched to Cash on Pickup', orderNumber: order.orderNumber, amount: order.total });
+    res.json({
+      success: true, message: 'Switched to Cash on Pickup', orderNumber: order.orderNumber, amount: order.total,
+    });
   } catch (err) { next(err); }
 };

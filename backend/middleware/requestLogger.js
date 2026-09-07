@@ -43,7 +43,7 @@ const SENSITIVE_HEADERS = new Set([
 /**
  * Redact sensitive values from an object.
  */
-function redactHeaders(headers) {
+function _redactHeaders(headers) {
   const redacted = {};
   for (const [key, value] of Object.entries(headers)) {
     if (SENSITIVE_HEADERS.has(key.toLowerCase())) {

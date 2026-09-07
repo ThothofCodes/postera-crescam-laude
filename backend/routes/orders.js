@@ -1,13 +1,14 @@
 // Copyright (c) 2026 Thoth of Codes. Licensed under the MIT License.
 const express = require('express');
+
 const router = express.Router();
+const { z } = require('zod');
 const orderController = require('../controllers/orderController');
 const { protect, staffGuard, deptAdminGuard } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const {
   createOrderSchema, updateOrderStatusSchema, recordPaymentSchema, ordersQuerySchema, mongoId,
 } = require('../validations/schemas');
-const { z } = require('zod');
 
 router.get('/', protect, staffGuard, validate(ordersQuerySchema, 'query'), orderController.getOrders);
 router.get('/phone/:phone', protect, staffGuard, orderController.getOrdersByPhone);

@@ -20,7 +20,9 @@ const PlatformFeeSchema = new mongoose.Schema({
 
   // ── Fee calculation ──────────────────────────────────────────────────────
   grossAmount: { type: Number, required: true, min: 0 }, // Total transaction amount (KES)
-  feePercentage: { type: Number, required: true, min: 0, max: 100 }, // Platform fee %
+  feePercentage: {
+    type: Number, required: true, min: 0, max: 100,
+  }, // Platform fee %
   feeAmount: { type: Number, required: true, min: 0 }, // Calculated fee in KES
   netAmount: { type: Number, required: true, min: 0 }, // Amount after fee deduction (KES)
   currency: { type: String, default: 'KES' },

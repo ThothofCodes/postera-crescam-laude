@@ -1,11 +1,12 @@
 // Copyright (c) 2026 Thoth of Codes. Licensed under the MIT License.
 const express = require('express');
+
 const router = express.Router();
+const { z } = require('zod');
 const productController = require('../controllers/productController');
 const { protect, deptAdminGuard } = require('../middleware/auth');
 const { upload } = require('../middleware/upload');
 const { cacheMiddleware, invalidateCache, TTL } = require('../middleware/cache');
-const { z } = require('zod');
 const { validate } = require('../middleware/validate');
 const {
   createProductSchema, updateProductSchema, productsQuerySchema, mongoId,

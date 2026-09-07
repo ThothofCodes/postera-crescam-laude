@@ -4,7 +4,7 @@ const { getMyNotifications, markRead, broadcast } = require('../controllers/noti
 const { getAuditLogs } = require('../controllers/auditController');
 const { getRevenueStats, getRevenueChartData } = require('../controllers/adminRevenueController');
 const { protect, superAdminGuard, staffGuard } = require('../middleware/auth');
-const { cacheMiddleware, invalidateCache, TTL } = require('../middleware/cache');
+const { cacheMiddleware, TTL } = require('../middleware/cache');
 
 // Notifications and audit logs — no cache (realtime)
 router.get('/notifications', protect, staffGuard, getMyNotifications);

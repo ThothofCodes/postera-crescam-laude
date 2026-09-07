@@ -8,7 +8,6 @@ const hpp = require('hpp');
 const mongoose = require('mongoose');
 const http = require('http');
 const swaggerUi = require('swagger-ui-express');
-const path = require('path');
 const {
   globalLimiter, writeLimiter, authLimiter, heavyLimiter, webhookLimiter,
 } = require('./middleware/rateLimiter');
@@ -26,7 +25,7 @@ const { getClient: getRedisClient, isConnected: isRedisConnected, disconnect: di
 
 mongoose.set('bufferCommands', false);
 
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason, _promise) => {
   logger.error('Unhandled rejection', {
     message: reason instanceof Error ? reason.message : String(reason),
     stack: reason instanceof Error ? reason.stack : undefined,
@@ -42,16 +41,16 @@ process.on('uncaughtException', (err) => {
   setTimeout(() => process.exit(1), 1000);
 });
 
-let dbReady = false;
+let _dbReady = false;
 
 // Log connection state changes
 mongoose.connection.on('disconnected', () => {
   logger.warn('MongoDB disconnected — will attempt auto-reconnect');
-  dbReady = false;
+  _dbReady = false;
 });
 mongoose.connection.on('connected', () => {
   logger.info('MongoDB connected');
-  dbReady = true;
+  _dbReady = true;
 });
 mongoose.connection.on('error', (err) => {
   logger.error('MongoDB connection error', { message: err.message });
@@ -448,7 +447,7 @@ httpServer.on('error', (err) => {
 
 // ── Connect DB then start listening ──────────────────────────────────────
 connectDB().then(() => {
-  dbReady = true;
+  _dbReady = true;
   // Initialize Redis connection (non-blocking, falls back gracefully)
   getRedisClient();
   try {

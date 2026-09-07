@@ -106,9 +106,9 @@ function zodToOpenApi(schema, name = undefined) {
       // Determine if required
       const innerDef = value._def || value;
       if (
-        innerDef.typeName !== 'ZodOptional' &&
-        innerDef.typeName !== 'ZodDefault' &&
-        innerDef.typeName !== 'ZodNullable'
+        innerDef.typeName !== 'ZodOptional'
+        && innerDef.typeName !== 'ZodDefault'
+        && innerDef.typeName !== 'ZodNullable'
       ) {
         required.push(key);
       }

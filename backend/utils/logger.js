@@ -10,12 +10,12 @@ const {
 
 // ── Custom format for console readability in development ──────────────────────
 const devFormat = printf(({
-  level, message, timestamp, stack, ...meta
+  level, message, timestamp: ts, stack, ...meta
 }) => {
   const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
   return stack
-    ? `${timestamp} ${level}: ${message}\n${stack}${metaStr}`
-    : `${timestamp} ${level}: ${message}${metaStr}`;
+    ? `${ts} ${level}: ${message}\n${stack}${metaStr}`
+    : `${ts} ${level}: ${message}${metaStr}`;
 });
 
 // ── Log directory ─────────────────────────────────────────────────────────────

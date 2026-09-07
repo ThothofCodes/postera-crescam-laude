@@ -10,7 +10,7 @@
 
 const compression = require('compression');
 const zlib = require('zlib');
-const logger = require('../utils/logger');
+const _logger = require('../utils/logger');
 
 const MIN_SIZE = 1024; // Don't compress responses smaller than 1KB
 const BROTLI_QUALITY = 4; // Balanced (0-11, higher = slower but better)
@@ -55,7 +55,7 @@ const SKIP_TYPES = new Set([
 // Paths that should skip compression (streaming/proxy endpoints)
 const SKIP_PATHS = [
   '/uploads/', // MinIO proxy — streams binary objects
-  '/ws',       // WebSocket upgrade
+  '/ws', // WebSocket upgrade
 ];
 
 /**

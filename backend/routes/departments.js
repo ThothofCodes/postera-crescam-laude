@@ -1,11 +1,17 @@
 // Copyright (c) 2026 Thoth of Codes. Licensed under the MIT License.
 const router = require('express').Router();
-const { getDepartments, getDepartment, updateDepartment, setMonthlyTarget, seedDepartments, createDepartment, deleteDepartment, getAllDepartments, toggleDepartment } = require('../controllers/departmentController');
+const { z } = require('zod');
+const {
+  getDepartments, getDepartment, updateDepartment, setMonthlyTarget,
+  seedDepartments, createDepartment, deleteDepartment,
+  getAllDepartments, toggleDepartment,
+} = require('../controllers/departmentController');
 const { protect, superAdminGuard, deptHeadGuard } = require('../middleware/auth');
 const { cacheMiddleware, invalidateCache, TTL } = require('../middleware/cache');
 const { validate } = require('../middleware/validate');
-const { createDepartmentSchema, updateDepartmentSchema, setMonthlyTargetSchema, slug } = require('../validations/schemas');
-const { z } = require('zod');
+const {
+  createDepartmentSchema, updateDepartmentSchema, setMonthlyTargetSchema, slug,
+} = require('../validations/schemas');
 
 router.get('/', cacheMiddleware('departments', TTL.STATIC), getDepartments);
 router.get('/all', protect, superAdminGuard, cacheMiddleware('departments:all', TTL.STATIC), getAllDepartments);

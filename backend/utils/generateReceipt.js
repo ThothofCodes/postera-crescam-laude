@@ -1,5 +1,5 @@
 // Copyright (c) 2026 Thoth of Codes. PDF Receipt Generator — MinIO storage
-const { uploadBuffer, fileUrl, MINIO_BUCKET } = require('../config/cloudinary');
+const { uploadBuffer, MINIO_BUCKET } = require('../config/cloudinary');
 
 function receiptHTML(invoice) {
   const items = (invoice.lineItems || []).map((item) => `<tr><td>${item.description}</td><td class="r">${item.qty || 1}</td>

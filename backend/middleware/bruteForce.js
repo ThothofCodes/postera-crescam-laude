@@ -54,7 +54,9 @@ function getRecord(ip) {
   const now = Date.now();
 
   if (!record) {
-    record = { attempts: 0, firstAttemptAt: now, lastAttemptAt: now, blockedUntil: 0 };
+    record = {
+      attempts: 0, firstAttemptAt: now, lastAttemptAt: now, blockedUntil: 0,
+    };
     attempts.set(ip, record);
     return record;
   }
@@ -73,9 +75,9 @@ function getRecord(ip) {
  * Calculate progressive delay based on attempt count.
  * Uses exponential backoff: base * 2^(attempts-1), capped at MAX_DELAY_MS.
  */
-function calculateDelay(attempts) {
-  if (attempts <= 1) return 0;
-  const delay = BASE_DELAY_MS * Math.pow(2, attempts - 2);
+function calculateDelay(count) {
+  if (count <= 1) return 0;
+  const delay = BASE_DELAY_MS * 2 ** (count - 2);
   return Math.min(delay, MAX_DELAY_MS);
 }
 

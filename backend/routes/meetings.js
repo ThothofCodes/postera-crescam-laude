@@ -4,18 +4,18 @@
 const express = require('express');
 
 const router = express.Router();
-const { protect, superAdminGuard } = require('../middleware/auth');
-const { validate } = require('../middleware/validate');
-const { createMeetingSchema, mongoId } = require('../validations/schemas');
 const { z } = require('zod');
-
-// LiveKit server SDK
 const {
   AccessToken,
   RoomServiceClient,
   EgressClient,
   WebhookReceiver,
 } = require('livekit-server-sdk');
+const { protect, superAdminGuard } = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
+const { createMeetingSchema, mongoId } = require('../validations/schemas');
+
+// LiveKit server SDK
 
 const Room = require('../models/Meeting');
 const { notifyParticipants } = require('../utils/meetingNotifications');
@@ -128,7 +128,9 @@ router.post('/rooms', protect, validate(createMeetingSchema), async (req, res) =
 // ── List Rooms ───────────────────────────────────────────────────────────
 router.get('/rooms', protect, async (req, res) => {
   try {
-    const { status, department, page = 1, limit = 20 } = req.query;
+    const {
+      status, department, page = 1, limit = 20,
+    } = req.query;
     const filter = {};
     if (status) filter.status = status;
     if (department) filter.department = department;

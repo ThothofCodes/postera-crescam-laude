@@ -6,7 +6,7 @@ const {
 const {
   protect, deptHeadGuard, superAdminGuard, deptScope, staffGuard,
 } = require('../middleware/auth');
-const { cacheMiddleware, invalidateCache, TTL } = require('../middleware/cache');
+const { cacheMiddleware, TTL } = require('../middleware/cache');
 
 router.get('/income', protect, deptHeadGuard, deptScope, getIncome);
 router.get('/breakdown', protect, superAdminGuard, cacheMiddleware('finance:breakdown', TTL.SHORT), getDeptBreakdown);

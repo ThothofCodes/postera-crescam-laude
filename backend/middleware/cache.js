@@ -6,10 +6,10 @@ const { getClient, isConnected } = require('../config/redis');
 
 // Default TTLs (seconds)
 const TTL = {
-  SHORT: 30,      // Dashboard stats, analytics summaries
-  MEDIUM: 60,     // Product listings, search results
-  LONG: 120,      // Featured products, services, single items
-  STATIC: 300,    // Departments, rarely-changing data
+  SHORT: 30, // Dashboard stats, analytics summaries
+  MEDIUM: 60, // Product listings, search results
+  LONG: 120, // Featured products, services, single items
+  STATIC: 300, // Departments, rarely-changing data
 };
 
 /**
@@ -38,7 +38,7 @@ function buildKey(prefix, req) {
  * @param {number} ttl     — time-to-live in seconds (default 60)
  * @param {object} [opts]  — { varyByUser: false, skipCache: fn }
  */
-function cacheMiddleware(prefix, ttl = TTL.MEDIUM, opts = {}) {
+function cacheMiddleware(prefix, ttl = TTL.MEDIUM, _opts = {}) {
   return async (req, res, next) => {
     // Only cache GET requests
     if (req.method !== 'GET' || !isConnected()) return next();
@@ -62,9 +62,9 @@ function cacheMiddleware(prefix, ttl = TTL.MEDIUM, opts = {}) {
     res.json = (body) => {
       // Only cache successful responses
       if (res.statusCode >= 200 && res.statusCode < 300) {
-        const client = getClient();
+        const innerClient = getClient();
         if (isConnected()) {
-          client.set(key, JSON.stringify(body), 'EX', ttl).catch(() => {});
+          innerClient.set(key, JSON.stringify(body), 'EX', ttl).catch(() => {});
         }
       }
       res.set('X-Cache', 'MISS');

@@ -2,8 +2,6 @@
 // Zod validation middleware — replaces manual validation in controllers.
 // Usage: router.post('/', validate(createProductSchema), controller.create)
 
-const { ZodError } = require('zod');
-
 /**
  * Express middleware factory — validates req.body, req.params, or req.query
  * against a Zod schema. Returns 402 with structured errors on failure.

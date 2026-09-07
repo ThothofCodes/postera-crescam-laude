@@ -135,7 +135,7 @@ async function testOAuth(baseUrl) {
   const auth = Buffer.from(`${key}:${secret}`).toString('base64');
 
   try {
-    const { data, status } = await axios.get(
+    const { data, status: _status } = await axios.get(
       `${baseUrl}/oauth/v1/generate?grant_type=client_credentials`,
       {
         headers: { Authorization: `Basic ${auth}` },

@@ -1,11 +1,13 @@
 // Copyright (c) 2026 Thoth of Codes. Licensed under the MIT License.
 const router = require('express').Router();
-const { getServices, getService, createService, updateService, deleteService, seedServices } = require('../controllers/serviceController');
+const { z } = require('zod');
+const {
+  getServices, getService, createService, updateService, deleteService, seedServices,
+} = require('../controllers/serviceController');
 const { protect, deptAdminGuard, superAdminGuard } = require('../middleware/auth');
 const { cacheMiddleware, invalidateCache, TTL } = require('../middleware/cache');
 const { validate } = require('../middleware/validate');
 const { createServiceSchema, updateServiceSchema, mongoId } = require('../validations/schemas');
-const { z } = require('zod');
 
 router.get('/', cacheMiddleware('services', TTL.LONG), getServices);
 router.get('/:id', validate(z.object({ id: mongoId }), 'params'), cacheMiddleware('services:id', TTL.LONG), getService);

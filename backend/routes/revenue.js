@@ -1,10 +1,12 @@
 // Copyright (c) 2026 Thoth of Codes. Licensed under the MIT License.
 const router = require('express').Router();
-const { getRevenue, getSummary, createRevenue, updateRevenue, deleteRevenue } = require('../controllers/revenueController');
+const { z } = require('zod');
+const {
+  getRevenue, getSummary, createRevenue, updateRevenue, deleteRevenue,
+} = require('../controllers/revenueController');
 const { protect, staff } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { createRevenueSchema, mongoId } = require('../validations/schemas');
-const { z } = require('zod');
 
 router.use(protect, staff);
 router.get('/summary', getSummary);

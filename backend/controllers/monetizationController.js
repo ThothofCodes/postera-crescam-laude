@@ -45,12 +45,12 @@ exports.getCampaigns = async (req, res) => {
     if (status) filter.status = status;
     if (type) filter.type = type;
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
     const [campaigns, total] = await Promise.all([
       AdCampaign.find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(parseInt(limit))
+        .limit(parseInt(limit, 10))
         .lean(),
       AdCampaign.countDocuments(filter),
     ]);
@@ -58,10 +58,10 @@ exports.getCampaigns = async (req, res) => {
     res.json({
       campaigns,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
         total,
-        pages: Math.ceil(total / parseInt(limit)),
+        pages: Math.ceil(total / parseInt(limit, 10)),
       },
     });
   } catch (err) {
@@ -230,12 +230,12 @@ exports.getPromoCodes = async (req, res) => {
     if (isActive !== undefined) filter.isActive = isActive === 'true';
     if (isReferralCode !== undefined) filter.isReferralCode = isReferralCode === 'true';
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
     const [promos, total] = await Promise.all([
       PromoCode.find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(parseInt(limit))
+        .limit(parseInt(limit, 10))
         .populate('createdBy', 'name email')
         .lean(),
       PromoCode.countDocuments(filter),
@@ -244,10 +244,10 @@ exports.getPromoCodes = async (req, res) => {
     res.json({
       promos,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
         total,
-        pages: Math.ceil(total / parseInt(limit)),
+        pages: Math.ceil(total / parseInt(limit, 10)),
       },
     });
   } catch (err) {
@@ -427,7 +427,7 @@ exports.recordFee = async ({
 }) => {
   try {
     const feePercentage = DEFAULT_FEE_PERCENTAGE;
-    const feeAmount = Math.round((grossAmount * feePercentage / 100) * 100) / 100;
+    const feeAmount = Math.round(((grossAmount * feePercentage) / 100) * 100) / 100;
     const netAmount = Math.round((grossAmount - feeAmount) * 100) / 100;
 
     const fee = await PlatformFee.create({
@@ -544,12 +544,12 @@ exports.getFeeTransactions = async (req, res) => {
     const filter = {};
     if (sourceType) filter.sourceType = sourceType;
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
     const [transactions, total] = await Promise.all([
       PlatformFee.find(filter)
         .sort({ collectedAt: -1 })
         .skip(skip)
-        .limit(parseInt(limit))
+        .limit(parseInt(limit, 10))
         .lean(),
       PlatformFee.countDocuments(filter),
     ]);
@@ -557,10 +557,10 @@ exports.getFeeTransactions = async (req, res) => {
     res.json({
       transactions,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
         total,
-        pages: Math.ceil(total / parseInt(limit)),
+        pages: Math.ceil(total / parseInt(limit, 10)),
       },
     });
   } catch (err) {

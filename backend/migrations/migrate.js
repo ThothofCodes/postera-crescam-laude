@@ -69,7 +69,6 @@ async function runMigrations() {
     try {
       console.log(`⏳  Running: ${migration.name}`);
       // eslint-disable-next-line import/no-dynamic-require
-
       const migrationModule = require(migration.path);
       await migrationModule.up(mongoose.connection.db);
 
@@ -132,6 +131,7 @@ async function rollbackMigrations() {
   for (const migration of toRollback) {
     try {
       const migrationFile = path.join(__dirname, `${migration.name}.js`);
+      // eslint-disable-next-line import/no-dynamic-require
       const migrationModule = require(migrationFile);
 
       if (!migrationModule.down) {

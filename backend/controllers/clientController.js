@@ -4,7 +4,9 @@ const Client = require('../models/Client');
 
 exports.getClients = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, search, clientType } = req.query;
+    const {
+      page = 1, limit = 20, search, clientType,
+    } = req.query;
     const query = {};
     if (search) {
       const safe = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').slice(0, 100);
@@ -15,7 +17,9 @@ exports.getClients = async (req, res, next) => {
       Client.find(query).sort('-createdAt').skip((page - 1) * limit).limit(limit),
       mongoose.connection.readyState === 1 ? Client.countDocuments(query) : Promise.resolve(0),
     ]);
-    res.json({ clients, total, page, pages: Math.ceil(total / limit) });
+    res.json({
+      clients, total, page, pages: Math.ceil(total / limit),
+    });
   } catch (err) { next(err); }
 };
 

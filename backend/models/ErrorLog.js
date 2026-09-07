@@ -39,12 +39,12 @@ const errorLogSchema = new mongoose.Schema({
   },
 
   // ── Request context (backend errors) ────────────────────────────────────
-  method: String,       // HTTP method
-  path: String,         // Request path
-  statusCode: Number,   // Response status code
-  requestId: String,    // X-Request-Id
-  ip: String,           // Client IP
-  userAgent: String,    // User-Agent header
+  method: String, // HTTP method
+  path: String, // Request path
+  statusCode: Number, // Response status code
+  requestId: String, // X-Request-Id
+  ip: String, // Client IP
+  userAgent: String, // User-Agent header
 
   // ── User context ────────────────────────────────────────────────────────
   userId: {
@@ -56,12 +56,12 @@ const errorLogSchema = new mongoose.Schema({
   userRole: String,
 
   // ── Frontend context ────────────────────────────────────────────────────
-  url: String,          // Full page URL
-  pagePath: String,     // pathname only
+  url: String, // Full page URL
+  pagePath: String, // pathname only
   componentStack: String, // React component stack (if component error)
-  lineNumber: Number,   // Source line number (JS error)
+  lineNumber: Number, // Source line number (JS error)
   columnNumber: Number, // Source column number (JS error)
-  fileName: String,     // Source file URL
+  fileName: String, // Source file URL
 
   // ── Environment / version ───────────────────────────────────────────────
   environment: {
@@ -69,11 +69,11 @@ const errorLogSchema = new mongoose.Schema({
     enum: ['development', 'test', 'production'],
     default: 'production',
   },
-  appVersion: String,   // Frontend build version
-  nodeVersion: String,  // Backend Node.js version
+  appVersion: String, // Frontend build version
+  nodeVersion: String, // Backend Node.js version
 
   // ── Occurrence tracking ─────────────────────────────────────────────────
-  fingerprint: {        // Hash of message + stack + path for grouping
+  fingerprint: { // Hash of message + stack + path for grouping
     type: String,
     index: true,
   },
