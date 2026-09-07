@@ -7,6 +7,27 @@ const Notification = require('../models/Notification');
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
 
 /**
+ * Build the branded PCL meeting email HTML.
+ */
+function buildEmailHtml({
+  heading, title, description, details, joinUrl, joinLabel,
+}) {
+  const detailsHtml = (details || [])
+    .map((d) => `<p style="margin:4px 0;color:#374151;">${d}</p>`)
+    .join('');
+
+  return '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;">'
+    + '<div style="background:linear-gradient(135deg,#FF6B00,#00C7B7);border-radius:12px;padding:24px;text-align:center;margin-bottom:24px;">'
+    + `<h1 style="color:#fff;margin:0;font-size:22px;">${heading}</h1></div>`
+    + `<h2 style="color:#111;margin:0 0 8px;">${title}</h2>`
+    + (description ? `<p style="color:#666;margin:0 0 16px;">${description}</p>` : '')
+    + '<div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:20px;">'
+    + detailsHtml + '</div>'
+    + `<a href="${joinUrl}" style="display:inline-block;background:linear-gradient(135deg,#FF6B00,#00C7B7);color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:16px;">${joinLabel}</a>`
+    + '<p style="color:#999;font-size:12px;margin-top:24px;">Postera Crescam Laude</p></div>';
+}
+
+/**
  * Send email + SMS + in-app notification to a list of users about a meeting event.
  * Skips the `skipUserId` (e.g. the joiner themselves doesn't get a "you joined" nudge).
  *
@@ -16,7 +37,9 @@ const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
  * @param {string}  opts.joinerName  - Name of the person who joined (for 'joining' event)
  * @param {string}  [opts.skipUserId] - User ID to skip (the actor)
  */
-async function notifyParticipants({ room, event, joinerName, skipUserId }) {
+async function notifyParticipants({
+  room, event, joinerName, skipUserId,
+}) {
   // Collect participant IDs (unique, excluding skip)
   const ids = [...new Set(
     (room.participants || [])
@@ -130,7 +153,7 @@ async function notifyParticipants({ room, event, joinerName, skipUserId }) {
       } catch (_) { /* best effort */ }
     }
 
-    // Notification (email via nodemailer — free)
+    // SMS
     const notifyTo = user.email || user.phone;
     if (notifyTo) {
       try {
@@ -151,23 +174,4 @@ async function notifyParticipants({ room, event, joinerName, skipUserId }) {
   return { emailsSent, smsSent, inAppSent };
 }
 
-/**
- * Build the branded PCL meeting email HTML.
- */
-function buildEmailHtml({ heading, title, description, details, joinUrl, joinLabel }) {
-  const detailsHtml = (details || [])
-    .map((d) => `<p style="margin:4px 0;color:#374151;">${d}</p>`)
-    .join('');
-
-  return '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;">'
-    + '<div style="background:linear-gradient(135deg,#FF6B00,#00C7B7);border-radius:12px;padding:24px;text-align:center;margin-bottom:24px;">'
-    + `<h1 style="color:#fff;margin:0;font-size:22px;">${heading}</h1></div>`
-    + `<h2 style="color:#111;margin:0 0 8px;">${title}</h2>`
-    + (description ? `<p style="color:#666;margin:0 0 16px;">${description}</p>` : '')
-    + '<div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:20px;">'
-    + detailsHtml + '</div>'
-    + `<a href="${joinUrl}" style="display:inline-block;background:linear-gradient(135deg,#FF6B00,#00C7B7);color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:16px;">${joinLabel}</a>`
-    + '<p style="color:#999;font-size:12px;margin-top:24px;">Postera Crescam Laude</p></div>';
-}
-
-module.exports = { notifyParticipants };
+module.exports = { notifyParticipants, buildEmailHtml };

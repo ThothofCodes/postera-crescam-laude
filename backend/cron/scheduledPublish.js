@@ -78,7 +78,7 @@ async function runScheduledPublish() {
         });
 
         // Clear the scheduledAt field after publishing
-        await sanityClient
+        await getSanityClient()
           .patch(article._id)
           .unset(['scheduledAt'])
           .commit();

@@ -3,12 +3,15 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const { globalLimiter, writeLimiter, authLimiter, heavyLimiter, webhookLimiter } = require('./middleware/rateLimiter');
 const mongoSanitize = require('express-mongo-sanitize');
 const hpp = require('hpp');
 const mongoose = require('mongoose');
 const http = require('http');
 const swaggerUi = require('swagger-ui-express');
+const path = require('path');
+const {
+  globalLimiter, writeLimiter, authLimiter, heavyLimiter, webhookLimiter,
+} = require('./middleware/rateLimiter');
 const connectDB = require('./config/db');
 const setupIndexes = require('./utils/setupIndexes');
 const requestId = require('./middleware/requestId');
@@ -52,33 +55,6 @@ mongoose.connection.on('connected', () => {
 });
 mongoose.connection.on('error', (err) => {
   logger.error('MongoDB connection error', { message: err.message });
-});
-
-connectDB().then(() => {
-  dbReady = true;
-  // Initialize Redis connection (non-blocking, falls back gracefully)
-  getRedisClient();
-  try {
-    require('./cron/jobs')();
-    setupIndexes().catch((e) => logger.warn('Index setup warning', { message: e.message }));
-  } catch (e) {
-    logger.error('Startup error', { message: e.message });
-  }
-
-  // Start listening only after DB is connected
-  httpServer.listen(PORT, () => {
-    logger.info(`Server running on port ${PORT}`);
-    logger.info('Socket.io attached — real-time events active');
-    logger.info(`Health: http://localhost:${PORT}/api/health`);
-  });
-}).catch((err) => {
-  // If DB connection fails, start anyway (degraded mode)    logger.error('MongoDB connection failed', { message: err.message });
-    logger.warn('Starting server in degraded mode — some features unavailable');
-  httpServer.listen(PORT, () => {
-    logger.warn(`Server running on port ${PORT} in degraded mode (no DB)`);
-    logger.info('Socket.io attached — real-time events active');
-    logger.info(`Health: http://localhost:${PORT}/api/health`);
-  });
 });
 
 const app = express();
@@ -162,7 +138,6 @@ app.use(gzipFallback);
 app.use(csrfProtection);
 
 // ── 3a. MinIO object storage init + proxy ────────────────────────────────
-const path = require('path');
 const { ensureBuckets, getClient, MINIO_BUCKET } = require('./config/cloudinary');
 
 // Ensure MinIO buckets exist at startup
@@ -232,12 +207,12 @@ const WRITE_EXEMPT_PATHS = [
   '/payments/mpesa/callback',
   '/billing/mpesa-callback',
   '/monetization/ads/impression', // Public tracking — anonymous, high volume
-  '/monetization/ads/click',      // Public tracking — anonymous, high volume
+  '/monetization/ads/click', // Public tracking — anonymous, high volume
   '/monetization/promos/validate', // Pre-checkout validation
-  '/analytics/events',            // Consent-gated event ingestion
-  '/v1/analytics/events',        // Same path under v1 prefix
-  '/errors',                     // Frontend error ingestion
-  '/v1/errors',                  // Same path under v1 prefix
+  '/analytics/events', // Consent-gated event ingestion
+  '/v1/analytics/events', // Same path under v1 prefix
+  '/errors', // Frontend error ingestion
+  '/v1/errors', // Same path under v1 prefix
 ];
 app.use('/api/', (req, res, next) => {
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
@@ -344,8 +319,8 @@ app.get('/api/health/detail', async (req, res) => {
       },
       redis: {
         connected: isRedisConnected(),
-        host: process.env.REDIS_HOST || "localhost",
-        port: process.env.REDIS_PORT || "6379",
+        host: process.env.REDIS_HOST || 'localhost',
+        port: process.env.REDIS_PORT || '6379',
       },
       ...metricsData,
     });
@@ -469,6 +444,35 @@ httpServer.on('error', (err) => {
   } else {
     throw err;
   }
+});
+
+// ── Connect DB then start listening ──────────────────────────────────────
+connectDB().then(() => {
+  dbReady = true;
+  // Initialize Redis connection (non-blocking, falls back gracefully)
+  getRedisClient();
+  try {
+    require('./cron/jobs')();
+    setupIndexes().catch((e) => logger.warn('Index setup warning', { message: e.message }));
+  } catch (e) {
+    logger.error('Startup error', { message: e.message });
+  }
+
+  // Start listening only after DB is connected
+  httpServer.listen(PORT, () => {
+    logger.info(`Server running on port ${PORT}`);
+    logger.info('Socket.io attached — real-time events active');
+    logger.info(`Health: http://localhost:${PORT}/api/health`);
+  });
+}).catch((err) => {
+  // If DB connection fails, start anyway (degraded mode)
+  logger.error('MongoDB connection failed', { message: err.message });
+  logger.warn('Starting server in degraded mode — some features unavailable');
+  httpServer.listen(PORT, () => {
+    logger.warn(`Server running on port ${PORT} in degraded mode (no DB)`);
+    logger.info('Socket.io attached — real-time events active');
+    logger.info(`Health: http://localhost:${PORT}/api/health`);
+  });
 });
 
 // ── Graceful shutdown ──────────────────────────────────────────────────────

@@ -16,7 +16,7 @@ const results = { pass: 0, fail: 0, errors: [] };
 
 function ok(name) { results.pass++; process.stdout.write(`  ✅ ${name}\n`); }
 function fail(name) { results.fail++; results.errors.push(name); process.stdout.write(`  ❌ ${name}\n`); }
-function assert(cond, name) { cond ? ok(name) : fail(name); }
+function assert(cond, name) { if (cond) ok(name); else fail(name); }
 
 // ── Cookie helpers ──────────────────────────────────────────────────────────
 
@@ -37,13 +37,18 @@ function cookieStr(cookies) {
 
 // ── HTTP request helper ─────────────────────────────────────────────────────
 
-function req(method, urlPath, { body, headers = {}, withCsrf = false, timeout = 15000 } = {}) {
+function req(method, urlPath, {
+  body, headers = {}, withCsrf = false, timeout = 15000,
+} = {}) {
   return new Promise((resolve, reject) => {
     const url = new URL(urlPath, BASE);
     const opts = {
-      hostname: url.hostname, port: url.port,
-      path: url.pathname + url.search, method,
-      headers: { ...headers }, timeout,
+      hostname: url.hostname,
+      port: url.port,
+      path: url.pathname + url.search,
+      method,
+      headers: { ...headers },
+      timeout,
     };
 
     // Auto-attach CSRF for write methods
@@ -51,12 +56,12 @@ function req(method, urlPath, { body, headers = {}, withCsrf = false, timeout = 
     if ((withCsrf || WRITES.has(method)) && csrfToken) {
       opts.headers['X-CSRF-Token'] = csrfToken;
       const cs = cookieStr(csrfCookies);
-      if (cs) opts.headers['Cookie'] = cs;
+      if (cs) opts.headers.Cookie = cs;
     }
 
     const r = http.request(opts, (res) => {
       const chunks = [];
-      res.on('data', c => chunks.push(c));
+      res.on('data', (c) => chunks.push(c));
       res.on('end', () => {
         // Sync CSRF state from Set-Cookie
         const nc = getCookies(res);
@@ -104,7 +109,7 @@ async function startServer() {
       const r = await req('GET', '/api/v1/deployment/ready', { timeout: 3000 });
       if (r.status === 200 || r.status === 503) { process.stdout.write(`Server ready at ${BASE}\n`); return proc; }
     } catch {}
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise((r) => { setTimeout(r, 500); });
   }
   proc.kill('SIGKILL');
   throw new Error('Server failed to start within 60s');
@@ -115,7 +120,7 @@ async function acquireCSRF() {
     const r = await req('GET', '/api/v1/auth/csrf-token', { withCsrf: false });
     if (r.status === 200 && r.body?.csrfToken) {
       csrfToken = r.body.csrfToken;
-      csrfCookies = { '_csrf': csrfToken };
+      csrfCookies = { _csrf: csrfToken };
       process.stdout.write(`CSRF acquired (${csrfToken.length} chars)\n`);
       return true;
     }
@@ -148,13 +153,13 @@ async function t2_csrf() {
 async function t3_cors() {
   process.stdout.write('\n─── 3. CORS ───\n');
   const pre = await req('OPTIONS', '/api/v1/auth/csrf-token', {
-    headers: { 'Origin': 'http://localhost:3000', 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'Content-Type,X-CSRF-Token' },
+    headers: { Origin: 'http://localhost:3000', 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'Content-Type,X-CSRF-Token' },
   });
   assert(pre.status === 204 || pre.status === 200, 'OPTIONS preflight → 200/204');
   assert(pre.headers['access-control-allow-origin'], 'access-control-allow-origin present');
   assert(pre.headers['access-control-allow-methods'], 'access-control-allow-methods present');
 
-  const r = await req('GET', '/api/v1/deployment/status', { headers: { 'Origin': 'http://localhost:3000' } });
+  const r = await req('GET', '/api/v1/deployment/status', { headers: { Origin: 'http://localhost:3000' } });
   assert(r.headers['access-control-allow-origin'], 'CORS header on regular GET');
 }
 
@@ -162,8 +167,10 @@ async function t4_compression() {
   process.stdout.write('\n─── 4. COMPRESSION ───\n');
   const r = await req('GET', '/api/v1/products', { headers: { 'Accept-Encoding': 'gzip, br, deflate' } });
   assert(r.status === 200, 'GET /products → 200');
-  assert(r.headers['content-encoding'] === 'br' || r.headers['content-encoding'] === 'gzip',
-    `Response compressed (${r.headers['content-encoding'] || 'none'})`);
+  assert(
+    r.headers['content-encoding'] === 'br' || r.headers['content-encoding'] === 'gzip',
+    `Response compressed (${r.headers['content-encoding'] || 'none'})`,
+  );
 }
 
 async function t5_public() {
@@ -231,16 +238,24 @@ async function t8_analytics() {
   assert(emptyArr.status === 400, `Empty array → 400 (got ${emptyArr.status})`);
 
   const valid = await req('POST', '/api/v1/analytics/events', {
-    body: { events: [
-      { event: 'page_viewed', timestamp: new Date().toISOString(), sessionId: 'test-1', url: '/' },
-      { event: 'product_viewed', timestamp: new Date().toISOString(), sessionId: 'test-1', url: '/p', productId: '123' },
-    ]},
+    body: {
+      events: [
+        {
+          event: 'page_viewed', timestamp: new Date().toISOString(), sessionId: 'test-1', url: '/',
+        },
+        {
+          event: 'product_viewed', timestamp: new Date().toISOString(), sessionId: 'test-1', url: '/p', productId: '123',
+        },
+      ],
+    },
     withCsrf: true,
   });
   assert(valid.status === 200, `Valid batch → 200 (got ${valid.status})`);
   assert(valid.body?.received === 2, `Received count = 2 (got ${valid.body?.received})`);
 
-  const big = Array.from({ length: 100 }, (_, i) => ({ event: 'test', timestamp: new Date().toISOString(), sessionId: `s${i}`, url: '/' }));
+  const big = Array.from({ length: 100 }, (_, i) => ({
+    event: 'test', timestamp: new Date().toISOString(), sessionId: `s${i}`, url: '/',
+  }));
   const r = await req('POST', '/api/v1/analytics/events', { body: { events: big }, withCsrf: true });
   assert(r.status === 200 && r.body?.received === 50, `Batch capped at 50 (got ${r.body?.received})`);
 }
@@ -248,8 +263,10 @@ async function t8_analytics() {
 async function t9_ratelimit() {
   process.stdout.write('\n─── 9. RATE LIMITING ───\n');
   const r = await req('POST', '/api/v1/auth/login', { body: { email: 'x@x.com', password: 'x' } });
-  assert(r.headers['ratelimit-limit'] || r.headers['x-ratelimit-limit'] || r.headers['retry-after'] || r.status >= 400,
-    'Rate limit headers present or proper error');
+  assert(
+    r.headers['ratelimit-limit'] || r.headers['x-ratelimit-limit'] || r.headers['retry-after'] || r.status >= 400,
+    'Rate limit headers present or proper error',
+  );
   const r2 = await req('GET', '/api/v1/products');
   assert(r2.status === 200, 'GET /products under rate limit');
 }
@@ -276,11 +293,15 @@ async function t11_errors() {
   const r = await new Promise((resolve) => {
     const url = new URL('/api/v1/auth/login', BASE);
     const req2 = http.request({
-      hostname: url.hostname, port: url.port, path: url.pathname, method: 'POST',
-      headers: { 'Content-Type': 'application/json' }, timeout: 10000,
+      hostname: url.hostname,
+      port: url.port,
+      path: url.pathname,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 10000,
     }, (res) => {
       const chunks = [];
-      res.on('data', c => chunks.push(c));
+      res.on('data', (c) => chunks.push(c));
       res.on('end', () => {
         let data; try { data = JSON.parse(Buffer.concat(chunks).toString()); } catch { data = {}; }
         resolve({ status: res.statusCode, body: data });
@@ -363,7 +384,7 @@ async function main() {
     process.stdout.write(`\n💥 FATAL: ${e.message}\n`);
     results.fail++; results.errors.push(`Fatal: ${e.message}`);
   } finally {
-    if (proc) { proc.kill('SIGTERM'); await new Promise(r => setTimeout(r, 1000)); proc.kill('SIGKILL'); }
+    if (proc) { proc.kill('SIGTERM'); await new Promise((r) => { setTimeout(r, 1000); }); proc.kill('SIGKILL'); }
   }
 
   process.stdout.write('\n╔══════════════════════════════════════════════════╗\n');
@@ -372,10 +393,10 @@ async function main() {
 
   if (results.errors.length > 0) {
     process.stdout.write('\nFailed:\n');
-    results.errors.forEach(e => process.stdout.write(`  ❌ ${e}\n`));
+    results.errors.forEach((e) => process.stdout.write(`  ❌ ${e}\n`));
   }
 
   process.exit(results.fail > 0 ? 1 : 0);
 }
 
-main().catch(e => { process.stdout.write(`Unhandled: ${e.message}\n`); process.exit(1); });
+main().catch((e) => { process.stdout.write(`Unhandled: ${e.message}\n`); process.exit(1); });

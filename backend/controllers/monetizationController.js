@@ -38,7 +38,9 @@ exports.createCampaign = async (req, res) => {
  */
 exports.getCampaigns = async (req, res) => {
   try {
-    const { status, type, page = 1, limit = 20 } = req.query;
+    const {
+      status, type, page = 1, limit = 20,
+    } = req.query;
     const filter = {};
     if (status) filter.status = status;
     if (type) filter.type = type;
@@ -221,7 +223,9 @@ exports.createPromoCode = async (req, res) => {
  */
 exports.getPromoCodes = async (req, res) => {
   try {
-    const { isActive, isReferralCode, page = 1, limit = 20 } = req.query;
+    const {
+      isActive, isReferralCode, page = 1, limit = 20,
+    } = req.query;
     const filter = {};
     if (isActive !== undefined) filter.isActive = isActive === 'true';
     if (isReferralCode !== undefined) filter.isReferralCode = isReferralCode === 'true';
@@ -516,8 +520,11 @@ exports.getFeeSummary = async (req, res) => {
 
     res.json({
       summary: summary[0] || {
-        totalGross: 0, totalFees: 0, totalNet: 0,
-        transactionCount: 0, avgFee: 0,
+        totalGross: 0,
+        totalFees: 0,
+        totalNet: 0,
+        transactionCount: 0,
+        avgFee: 0,
       },
       bySource,
       byDepartment,
@@ -664,8 +671,8 @@ exports.getDashboard = async (req, res) => {
         totalRevenue: totalAdRevenue[0]?.total || 0,
         impressions30d: totalImpressions[0]?.total || 0,
         clicks30d: totalClicks[0]?.total || 0,
-        ctr: totalImpressions[0]?.total > 0
-          ? ((totalClicks[0]?.total / totalImpressions[0]?.total) * 100).toFixed(2)
+        ctr: (totalImpressions[0]?.total || 0) > 0
+          ? (((totalClicks[0]?.total || 0) / (totalImpressions[0]?.total || 1)) * 100).toFixed(2)
           : '0',
       },
 
@@ -704,11 +711,11 @@ exports.getDashboard = async (req, res) => {
 
       // Summary
       totalMonetizationRevenue30d: (
-        (totalAdRevenue[0]?.total || 0) +
-        (feeStats[0]?.totalFees || 0) +
-        (productRevenue[0]?.total || 0) +
-        (bookingRevenue[0]?.total || 0) +
-        (consultationRevenue[0]?.total || 0)
+        (totalAdRevenue[0]?.total || 0)
+        + (feeStats[0]?.totalFees || 0)
+        + (productRevenue[0]?.total || 0)
+        + (bookingRevenue[0]?.total || 0)
+        + (consultationRevenue[0]?.total || 0)
       ),
     };
 

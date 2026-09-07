@@ -59,11 +59,15 @@ function validatePhone(phone) {
 
 function ask(question) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve) => rl.question(question, (answer) => { rl.close(); resolve(answer.trim()); }));
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => { rl.close(); resolve(answer.trim()); });
+  });
 }
 
 function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -239,7 +243,7 @@ async function testStkPush(baseUrl, token, phone, amount) {
     log.info(`Response (HTTP ${status}): ${JSON.stringify(data, null, 2)}`);
 
     if (data.ResponseCode === '0' || data.ResponseCode === 0) {
-      log.ok(`STK Push SENT SUCCESSFULLY`);
+      log.ok('STK Push SENT SUCCESSFULLY');
       log.ok(`MerchantRequestID: ${data.MerchantRequestID}`);
       log.ok(`CheckoutRequestID: ${data.CheckoutRequestID}`);
       log.ok(`CustomerMessage: ${data.CustomerMessage}`);
@@ -249,12 +253,12 @@ async function testStkPush(baseUrl, token, phone, amount) {
 
     // Common error codes
     const errorGuide = {
-      '1032': 'Request cancelled by user (you tapped Cancel on the STK prompt)',
-      '1037': 'DS timeout — user did not respond to the STK prompt in time',
-      '2001': 'Wrong credentials — the credentials used are invalid',
-      '2002': 'Transaction timeout',
-      '2026': 'Debit account insufficient funds',
-      '17': 'Insufficient funds in M-Pesa account',
+      1032: 'Request cancelled by user (you tapped Cancel on the STK prompt)',
+      1037: 'DS timeout — user did not respond to the STK prompt in time',
+      2001: 'Wrong credentials — the credentials used are invalid',
+      2002: 'Transaction timeout',
+      2026: 'Debit account insufficient funds',
+      17: 'Insufficient funds in M-Pesa account',
     };
 
     log.fail(`STK Push REJECTED (code: ${data.ResponseCode})`);
@@ -334,7 +338,7 @@ async function main() {
 
   // Parse args
   let phone = process.argv[2];
-  let amount = process.argv[3] || 1;
+  const amount = process.argv[3] || 1;
 
   // Step 1: Check environment
   const config = await testEnvironment();
@@ -377,8 +381,8 @@ async function main() {
   console.log(`${C.green}${C.bold}  ═══════════════════════════════════════════════${C.reset}`);
   console.log(`\n  ${C.bold}What to do next:${C.reset}`);
   console.log(`  1. Check your phone (${phone}) for the M-Pesa prompt`);
-  console.log(`  2. Enter your M-Pesa PIN to complete the test`);
-  console.log(`  3. Watch your server logs for the callback:`);
+  console.log('  2. Enter your M-Pesa PIN to complete the test');
+  console.log('  3. Watch your server logs for the callback:');
   console.log(`     ${C.dim}[MPESA] Callback received: id=... code=0 ip=...${C.reset}`);
   console.log('');
 
