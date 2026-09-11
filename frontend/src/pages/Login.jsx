@@ -28,7 +28,7 @@ export default function Login() {
         const result = await adminLogin(form.email, form.password);
         const role = result?.user?.role;
         const deptSlug = result?.user?.departmentSlug;
-        if (role === 'SUPER_ADMIN') {
+        if (role === 'SUPER_ADMIN' || role === 'SITE_MANAGER') {
           navigate('/admin/super', { replace: true });
         } else if (deptSlug) {
           navigate(`/admin/${deptSlug}`, { replace: true });

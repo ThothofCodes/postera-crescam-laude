@@ -1,9 +1,9 @@
 // Copyright (c) 2026 Thoth of Codes. Licensed under the MIT License.
 const router = require('express').Router();
 const {
-  getUsers, createUser, updateUser, resetPassword, deactivateUser,
+  getUsers, createUser, updateUser, resetPassword, deactivateUser, changeSiteManagerEmail,
 } = require('../controllers/userController');
-const { protect, staffManagerGuard } = require('../middleware/auth');
+const { protect, staffManagerGuard, superAdminGuard } = require('../middleware/auth');
 
 // All routes require authentication + staff manager permission
 router.use(protect, staffManagerGuard);
@@ -18,5 +18,8 @@ router.post('/', createUser);
 router.put('/:id', updateUser);
 router.post('/:id/reset-password', resetPassword);
 router.delete('/:id', deactivateUser);
+
+// SUPER_ADMIN only — change SITE_MANAGER email
+router.put('/:id/change-email', superAdminGuard, changeSiteManagerEmail);
 
 module.exports = router;

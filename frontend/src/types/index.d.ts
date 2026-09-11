@@ -6,7 +6,7 @@ export interface User {
   _id: string;
   name: string;
   email: string;
-  role: 'SUPER_ADMIN' | 'DEPT_HEAD_OWNER' | 'STAFF' | 'admin' | 'staff';
+  role: 'SUPER_ADMIN' | 'SITE_MANAGER' | 'DEPT_HEAD_OWNER' | 'STAFF' | 'admin' | 'staff';
   department?: Department | string | null;
   departmentSlug?: string | null;
   isOwner: boolean;
@@ -120,7 +120,7 @@ export interface Ticket {
 
 export interface ThreadEntry {
   author: string;
-  authorRole: 'SUPER_ADMIN' | 'DEPT_HEAD_OWNER' | 'STAFF' | 'CLIENT';
+  authorRole: 'SUPER_ADMIN' | 'SITE_MANAGER' | 'DEPT_HEAD_OWNER' | 'STAFF' | 'CLIENT';
   message: string;
   attachments: string[];
   createdAt: string;

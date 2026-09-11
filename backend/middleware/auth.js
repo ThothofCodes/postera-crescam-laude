@@ -113,17 +113,39 @@ exports.superAdminGuard = (req, res, next) => {
   next();
 };
 
-// ── Dept Head or Super Admin ─────────────────────────────────────────
-exports.deptHeadGuard = (req, res, next) => {
-  if (!['SUPER_ADMIN', 'DEPT_HEAD_OWNER'].includes(req.user?.role)) {
+// ── Site Manager (SUPER_ADMIN-like capabilities, no email lock) ──────
+// Site Manager has all SUPER_ADMIN capabilities except email-locked features
+exports.siteManagerGuard = (req, res, next) => {
+  if (req.user?.role !== 'SITE_MANAGER') {
     return res.status(403).json({ message: 'Forbidden' });
   }
   next();
 };
 
-// ── Any authenticated staff ──────────────────────────────────────────
+// ── Super Admin OR Site Manager ─────────────────────────────────────
+// For routes that both SUPER_ADMIN and SITE_MANAGER should access
+exports.adminOrSiteManager = (req, res, next) => {
+  const superEmail = process.env.SUPER_ADMIN_EMAIL || 'codeofthoth@outlook.com';
+  const isSuperAdmin = req.user?.role === 'SUPER_ADMIN' && req.user?.email === superEmail;
+  const isSiteManager = req.user?.role === 'SITE_MANAGER';
+  
+  if (!isSuperAdmin && !isSiteManager) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+  next();
+};
+
+// ── Dept Head, Super Admin, or Site Manager ─────────────────────────
+exports.deptHeadGuard = (req, res, next) => {
+  if (!['SUPER_ADMIN', 'SITE_MANAGER', 'DEPT_HEAD_OWNER'].includes(req.user?.role)) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+  next();
+};
+
+// ── Any authenticated staff (including Site Manager) ──────────────────
 exports.staffGuard = (req, res, next) => {
-  if (!['SUPER_ADMIN', 'DEPT_HEAD_OWNER', 'STAFF', 'admin', 'staff'].includes(req.user?.role)) {
+  if (!['SUPER_ADMIN', 'SITE_MANAGER', 'DEPT_HEAD_OWNER', 'STAFF', 'admin', 'staff'].includes(req.user?.role)) {
     return res.status(403).json({ message: 'Forbidden' });
   }
   next();
@@ -131,7 +153,7 @@ exports.staffGuard = (req, res, next) => {
 
 // ── Product/Service management ───────────────────────────────────────
 exports.deptAdminGuard = (req, res, next) => {
-  if (!['SUPER_ADMIN', 'DEPT_HEAD_OWNER', 'admin'].includes(req.user?.role)) {
+  if (!['SUPER_ADMIN', 'SITE_MANAGER', 'DEPT_HEAD_OWNER', 'admin'].includes(req.user?.role)) {
     return res.status(403).json({ message: 'Forbidden' });
   }
   next();
@@ -139,7 +161,7 @@ exports.deptAdminGuard = (req, res, next) => {
 
 // ── Staff management ─────────────────────────────────────────────────
 exports.staffManagerGuard = (req, res, next) => {
-  if (!['SUPER_ADMIN', 'DEPT_HEAD_OWNER', 'admin'].includes(req.user?.role)) {
+  if (!['SUPER_ADMIN', 'SITE_MANAGER', 'DEPT_HEAD_OWNER', 'admin'].includes(req.user?.role)) {
     return res.status(403).json({ message: 'Forbidden' });
   }
   next();
@@ -148,7 +170,7 @@ exports.staffManagerGuard = (req, res, next) => {
 // ── STAFF read-only scope ────────────────────────────────────────────
 exports.staffReadScope = (req, res, next) => {
   const role = req.user?.role;
-  if (['SUPER_ADMIN', 'DEPT_HEAD_OWNER', 'admin'].includes(role)) return next();
+  if (['SUPER_ADMIN', 'SITE_MANAGER', 'DEPT_HEAD_OWNER', 'admin'].includes(role)) return next();
   if (['STAFF', 'staff'].includes(role)) {
     req.deptFilter = { department: req.user.department?._id || req.user.department };
     return next();
@@ -158,7 +180,7 @@ exports.staffReadScope = (req, res, next) => {
 
 // ── Dept scope isolation ─────────────────────────────────────────────
 exports.deptScope = (req, res, next) => {
-  if (req.user?.role === 'SUPER_ADMIN') return next();
+  if (req.user?.role === 'SUPER_ADMIN' || req.user?.role === 'SITE_MANAGER') return next();
   const requestedSlug = req.params.deptSlug || req.body.departmentSlug;
   if (requestedSlug && req.user?.departmentSlug !== requestedSlug) {
     return res.status(403).json({ message: 'Forbidden' });

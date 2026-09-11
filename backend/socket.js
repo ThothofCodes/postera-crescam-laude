@@ -13,7 +13,7 @@ let _io = null;
 // could ever be "the admin" for chat, no matter how many department heads
 // or staff were logged in. It is now a real check against the actual role
 // enum defined on the User model.
-const ADMIN_CAPABLE_ROLES = ['SUPER_ADMIN', 'DEPT_HEAD_OWNER', 'STAFF', 'admin', 'staff'];
+const ADMIN_CAPABLE_ROLES = ['SUPER_ADMIN', 'SITE_MANAGER', 'DEPT_HEAD_OWNER', 'STAFF', 'admin', 'staff'];
 
 function isAdminRole(role) {
   if (!role) return false;

@@ -13,9 +13,10 @@ const UserSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['SUPER_ADMIN', 'DEPT_HEAD_OWNER', 'STAFF', 'admin', 'staff'], // legacy support
+    enum: ['SUPER_ADMIN', 'SITE_MANAGER', 'DEPT_HEAD_OWNER', 'STAFF', 'admin', 'staff'], // legacy support
     default: 'STAFF',
   },
+  siteManagerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }, // Links to SUPER_ADMIN who manages this site manager
   department: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', default: null },
   departmentSlug: { type: String, default: null },
   isOwner: { type: Boolean, default: false },

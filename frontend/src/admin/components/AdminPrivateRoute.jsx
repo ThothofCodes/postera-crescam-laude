@@ -2,7 +2,7 @@
 import { Navigate } from 'react-router-dom';
 import { useAdminAuth } from '../context/AdminAuthContext';
 
-const ADMIN_ROLES = ['SUPER_ADMIN', 'DEPT_HEAD_OWNER', 'STAFF', 'admin', 'staff'];
+const ADMIN_ROLES = ['SUPER_ADMIN', 'SITE_MANAGER', 'DEPT_HEAD_OWNER', 'STAFF', 'admin', 'staff'];
 
 const AdminPrivateRoute = ({ children }) => {
   const { user, loading } = useAdminAuth();

@@ -5,7 +5,7 @@ import { formatDate } from '../../../utils/helpers';
 import { Spinner, EmptyState } from '../../../components/UI';
 import toast from 'react-hot-toast';
 
-const ROLES = ['DEPT_HEAD_OWNER', 'STAFF'];
+const ROLES = ['SITE_MANAGER', 'DEPT_HEAD_OWNER', 'STAFF'];
 const EMPTY = { name:'', email:'', password:'', role:'STAFF', departmentSlug:'', isOwner:false, mustChangePassword:false };
 const FALLBACK_DEPTS = ['internet', 'webdev', 'playstation', 'repair', 'cybersecurity', 'govadmin'];
 
@@ -102,6 +102,9 @@ export default function UserManagement() {
                       <>
                         <button onClick={() => { setForm({ name:u.name, email:u.email, password:'', role:u.role, departmentSlug:u.departmentSlug||'', isOwner:u.isOwner||false }); setModal(u); }} style={btnSm('#EE6100')}>Edit</button>
                         <button onClick={() => setPwModal(u)} style={btnSm('#ffd700')}>PW</button>
+                        {u.role === 'SITE_MANAGER' && (
+                          <button onClick={() => setPwModal({...u, changeEmail: true})} style={btnSm('#2BB6A3')}>Email</button>
+                        )}
                         {u.isActive && <button onClick={() => deactivate(u._id)} style={btnSm('#ff3366')}>Deactivate</button>}
                       </>
                     )}
@@ -163,18 +166,42 @@ export default function UserManagement() {
       {pwModal && (
         <div style={overlay}>
           <div style={{ ...box, maxWidth: 360 }}>
-            <h3 style={{ margin: '0 0 1rem', color: '#ffd700' }}>Reset Password — {pwModal.name}</h3>
-            <form onSubmit={resetPw} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div><label style={lbl}>New Password</label><input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} required minLength={6} style={inp} /></div>
-              <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:12, color:'#ffd700' }}>
-                <input type="checkbox" checked={pwModal.mustChangePassword || false} onChange={(e) => setPwModal({...pwModal, mustChangePassword: e.target.checked})} />
-                Force password change on next login
-              </label>
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                <button type="button" onClick={() => setPwModal(null)} style={btn('#6A8A82')}>Cancel</button>
-                <button type="submit" disabled={saving} style={btn('#ffd700')}>{saving ? 'Resetting...' : 'Reset'}</button>
-              </div>
-            </form>
+            {pwModal.changeEmail ? (
+              <>
+                <h3 style={{ margin: '0 0 1rem', color: '#2BB6A3' }}>Change Email — {pwModal.name}</h3>
+                <form onSubmit={async (e) => {
+                  e.preventDefault(); setSaving(true);
+                  try {
+                    await api.put(`/users/${pwModal._id}/change-email`, { email: newPw });
+                    toast.success('Email updated successfully');
+                    setPwModal(null); setNewPw('');
+                    load();
+                  } catch (err) { toast.error(err.response?.data?.message || 'Error'); }
+                  setSaving(false);
+                }} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div><label style={lbl}>New Email</label><input type="email" value={newPw} onChange={(e) => setNewPw(e.target.value)} required style={inp} /></div>
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    <button type="button" onClick={() => { setPwModal(null); setNewPw(''); }} style={btn('#6A8A82')}>Cancel</button>
+                    <button type="submit" disabled={saving} style={btn('#2BB6A3')}>{saving ? 'Updating...' : 'Update Email'}</button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              <>
+                <h3 style={{ margin: '0 0 1rem', color: '#ffd700' }}>Reset Password — {pwModal.name}</h3>
+                <form onSubmit={resetPw} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div><label style={lbl}>New Password</label><input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} required minLength={6} style={inp} /></div>
+                  <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:12, color:'#ffd700' }}>
+                    <input type="checkbox" checked={pwModal.mustChangePassword || false} onChange={(e) => setPwModal({...pwModal, mustChangePassword: e.target.checked})} />
+                    Force password change on next login
+                  </label>
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    <button type="button" onClick={() => setPwModal(null)} style={btn('#6A8A82')}>Cancel</button>
+                    <button type="submit" disabled={saving} style={btn('#ffd700')}>{saving ? 'Resetting...' : 'Reset'}</button>
+                  </div>
+                </form>
+              </>
+            )}
           </div>
         </div>
       )}

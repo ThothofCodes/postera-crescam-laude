@@ -171,3 +171,45 @@ exports.deactivateUser = async (req, res, next) => {
     res.json({ message: 'User deactivated' });
   } catch (err) { next(err); }
 };
+
+// ── SUPER_ADMIN can change SITE_MANAGER email ───────────────────────
+exports.changeSiteManagerEmail = async (req, res, next) => {
+  try {
+    // Only SUPER_ADMIN can change SITE_MANAGER email
+    if (req.user.role !== 'SUPER_ADMIN') {
+      return res.status(403).json({ message: 'Only Super Admin can change Site Manager email' });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Only allow changing email for SITE_MANAGER role
+    if (user.role !== 'SITE_MANAGER') {
+      return res.status(400).json({ message: 'Can only change email for Site Manager accounts' });
+    }
+
+    const { email } = req.body;
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ message: 'Valid email address required' });
+    }
+
+    // Check if email is already taken
+    const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
+    if (existingUser && existingUser._id.toString() !== user._id.toString()) {
+      return res.status(400).json({ message: 'Email address already in use' });
+    }
+
+    user.email = email.toLowerCase().trim();
+    await user.save();
+
+    res.json({ 
+      message: 'Site Manager email updated successfully',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      }
+    });
+  } catch (err) { next(err); }
+};

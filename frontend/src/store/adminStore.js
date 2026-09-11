@@ -127,6 +127,9 @@ export const getPermissions = (role) => {
   switch (role) {
     case 'SUPER_ADMIN':
       return { ...base, canManageUsers: true, canViewReports: true, canManageInventory: true, canManageBilling: true };
+    case 'SITE_MANAGER':
+      // Site Manager has same permissions as SUPER_ADMIN (except email-locked features)
+      return { ...base, canManageUsers: true, canViewReports: true, canManageInventory: true, canManageBilling: true };
     case 'DEPT_HEAD_OWNER':
       return { ...base, canViewReports: true, canManageInventory: true, canManageBilling: true };
     case 'STAFF':

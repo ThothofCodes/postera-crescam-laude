@@ -95,6 +95,8 @@ function SidebarSection({ title, children, defaultOpen = true }) {
 export function SuperAdminLayout() {
   const { user, loading, logout } = useAdminAuth();
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const isSiteManager = user?.role === 'SITE_MANAGER';
+  const hasAccess = isSuperAdmin || isSiteManager;
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
@@ -126,7 +128,7 @@ export function SuperAdminLayout() {
 
   if (loading) return <Spinner />;
   if (!user) return <Navigate to="/admin/login" replace />;
-  if (!isSuperAdmin) return <Navigate to="/403" replace />;
+  if (!hasAccess) return <Navigate to="/403" replace />;
 
   const sidebarWidth = sidebarOpen ? 232 : 0;
   const isActive = (path) => location.pathname === path || (path !== '/admin/super' && location.pathname.startsWith(path));
@@ -174,7 +176,7 @@ export function SuperAdminLayout() {
               fontSize: 7, color: '#EE6100', letterSpacing: '0.2em',
               textTransform: 'uppercase', marginTop: 3, fontWeight: 700,
               fontFamily: "'Share Tech Mono',monospace",
-            }}>Super Admin</div>
+            }}>{isSiteManager ? 'Site Manager' : 'Super Admin'}</div>
           </NavLink>
           {/* Collapse button */}
           <button
@@ -321,7 +323,7 @@ export function SuperAdminLayout() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <NotificationBell />
             <div className="admin-header-user" style={{ fontSize: 10, color: '#6A8A82', whiteSpace: 'nowrap' }}>
-              {user.name} · <span style={{ color: '#EE6100' }}>SUPER ADMIN</span>
+              {user.name} · <span style={{ color: '#EE6100' }}>{isSiteManager ? 'SITE MANAGER' : 'SUPER ADMIN'}</span>
             </div>
           </div>
         </header>
